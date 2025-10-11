@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.version     = Superfeature::VERSION
   spec.authors     = ["Brad Gessler"]
   spec.email       = ["bradgessler@gmail.com"]
-  spec.homepage    = "https://github.com/rocketshipio/superfeature"
+  spec.homepage    = "https://github.com/rubymonolith/superfeature"
   spec.summary     = "Powerful cascading feature flags in Rails."
   spec.description = "Features can get really complicated when you have to cascade them from global, account, policy, group, and policy levels. Superfeature makes that easy!"
   spec.license     = "MIT"
