@@ -1,0 +1,13 @@
+class <%= class_name %> < ApplicationPlan
+  # Override or add features specific to this plan
+  
+  # Example: Enable a feature for this plan
+  # def advanced_analytics
+  #   enabled
+  # end
+  
+  # Example: Set specific limits for this plan
+  # def api_calls
+  #   hard_limit quantity: account.api_calls_count, maximum: 10000
+  # end
+end
