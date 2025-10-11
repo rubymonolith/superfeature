@@ -27,6 +27,10 @@ RSpec.describe Featureomatic::Plan do
     expect(plan.phone_support).to be_disabled
   end
 
+  it "has phone_support name" do
+    expect(plan.phone_support.name).to eql "Phone Support"
+  end
+
   it "has email_support enabled" do
     expect(plan.email_support).to be_enabled
   end
