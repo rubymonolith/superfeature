@@ -1,32 +1,23 @@
 require "featureomatic/version"
 require "featureomatic/engine"
 
+require "featureomatic/version"
+require "featureomatic/engine"
+
 module Featureomatic
-  def self.plan(&block)
-    Class.new(Featureomatic::Plan, &block)
+  def self.plan(&)
+    Class.new(Featureomatic::Plan, &)
   end
 
   class Feature
-    delegate :enabled?, :disabled?, to: :limit
-
     attr_reader :plan, :limit, :name
+    delegate :enabled?, :disabled?, to: :limit
+    delegate :upgrade, :downgrade, to: :plan
 
-    def initialize(plan:, limit:, name:)
+    def initialize(plan:, name:, limit: Limit::Base.new)
       @plan = plan
       @limit = limit
       @name = name
-    end
-
-    def upgrade
-      Upgrade.new(plan)
-    end
-
-    def downgrade
-      Downgrade.new(plan)
-    end
-
-    def limit
-      Limit.new
     end
   end
 
@@ -41,7 +32,7 @@ module Featureomatic
       end
     end
 
-    class HardLimit < Base
+    class Hard < Base
       attr_accessor :quantity, :maximum
 
       def initialize(quantity: , maximum: )
@@ -62,10 +53,10 @@ module Featureomatic
       end
     end
 
-    class SoftLimit < HardLimit
+    class Soft < Hard
       attr_accessor :quantity, :soft_limit, :hard_limit
 
-      def initialize(quantity: , soft_limit: , hard_limit: )
+      def initialize(quantity:, soft_limit:, hard_limit:)
         @quantity = quantity
         @soft_limit = soft_limit
         @hard_limit = hard_limit
@@ -76,20 +67,20 @@ module Featureomatic
       end
     end
 
-    # Unlimited is treated like a SoftLimit, initialized with infinity values.
+    # Unlimited is treated like a Soft, initialized with infinity values.
     # It is recommended to set a `soft_limit` value based on the technical limitations
     # of your application unless you're running a theoritcal Turing Machine.
     #
     # See https://en.wikipedia.org/wiki/Turing_machine for details.
-    class Unlimited < SoftLimit
+    class Unlimited < Soft
       INFINITY = Float::INFINITY
 
-      def initialize(quantity: nil, hard_limit: INFINITY, soft_limit: INFINITY, **kwargs)
-        super(quantity: quantity, hard_limit: hard_limit, soft_limit: soft_limit, **kwargs)
+      def initialize(quantity: nil, hard_limit: INFINITY, soft_limit: INFINITY, **)
+        super(quantity:, hard_limit:, soft_limit:, **)
       end
     end
 
-    class BooleanLimit < Base
+    class Boolean < Base
       def initialize(enabled:)
         @enabled = enabled
       end
@@ -107,13 +98,13 @@ module Featureomatic
     def downgrade
     end
 
-    private
+    protected
       def hard_limit(**)
-        Limit::HardLimit.new(**)
+        Limit::Hard.new(**)
       end
 
       def soft_limit(**)
-        Limit::SoftLimit.new(**)
+        Limit::Soft.new(**)
       end
 
       def unlimited(**)
@@ -121,11 +112,15 @@ module Featureomatic
       end
 
       def enabled(value = true, **)
-        Limit::BooleanLimit.new enabled: value, **
+        Limit::Boolean.new enabled: value, **
       end
 
       def disabled(value = true)
         enabled !value
+      end
+
+      def feature(name, **)
+        Feature.new(plan: self, name:, **)
       end
   end
 end

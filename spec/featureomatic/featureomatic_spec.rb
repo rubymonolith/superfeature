@@ -16,11 +16,7 @@ RSpec.describe Featureomatic::Plan do
       end
 
       def phone_support
-        disabled
-      end
-
-      def phone_support
-        feature "Phone Support", limit: hard_limit(quantity: 6, maximum: 100)
+        feature "Phone Support", limit: hard_limit(quantity: 600, maximum: 100)
       end
     end
   end

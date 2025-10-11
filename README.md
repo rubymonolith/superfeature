@@ -44,11 +44,11 @@ class ApplicationPlan < Featureomatic::Plan
   end
 
   def team_size
-    hard_limit limit: 0, quantity: account.users.count
+    hard_limit maximum: 0, quantity: account.users.count
   end
 
   def moderation
-    boolean_limit account.users.name
+    enabled account.moderation_enabled?
   end
 
   def support
@@ -57,32 +57,33 @@ class ApplicationPlan < Featureomatic::Plan
 end
 ```
 
-You'll setup your constructor that you'll use to figure out whether or not a person has access to a plan feature, or not.
-
-## Usage
-
-Ready to add a new feature to your plan? Sweet!
+Here's what it would look like when you add an enterprise plan to the lign up in the ``./app/plans/application_plan.rb`` file.
 
 ```ruby
-# ./app/features/moderation_feature.rb
-class ModerationFeature < ApplicationPlan
-  def name
-    "Moderation"
-  end
+class EnerprisePlan < ApplicationPlan
+  def support = enabled
+  def saml = enabled
 end
 ```
+
+## Usage
 
 Then you can do things from controllers like:
 
 ```ruby
 class ModerationController < ApplicationController
   def show
-    if feature.moderation?
+    if feature.moderation.enabled?
       render "moderation"
     else
       redirect_to moderation_upgrade_path
     end
   end
+
+  protected
+
+  def plan = ApplicationPlan.new
+  def feature = plan.moderation
 end
 ```
 
@@ -90,31 +91,11 @@ Or from views:
 
 ```erb
 <h1>Moderation</h1>
-<% if feature.moderation? %>
+<% if feature.enabled? %>
   <p><% render partial: "moderation" %></p>
 <% else %>
-  <p>Call sales to upgrade to <%= feature(:moderation).name %></p>
+  <p>Call sales to upgrade to moderation</p>
 <% end %>
-```
-
-## Advanced feature resolution
-
-Let's talk about that enterprise use-case that deals with all sorts of craziness:
-
-```ruby
-class ApplicationPlan < Featureomatic::Plan
-  def initialize(user, account)
-    @user = user
-    @account = account
-    @plan = account.plan
-  end
-
-  def enabled?
-    return unless plan.moderation_enabled?
-    return unless account.moderation_enabled?
-    true
-  end
-end
 ```
 
 ## Comparable libraries
