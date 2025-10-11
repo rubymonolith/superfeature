@@ -1,4 +1,4 @@
-module Featureomatic
+module Superfeature
   module ApplicationHelper
   end
 end

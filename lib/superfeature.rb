@@ -1,12 +1,9 @@
-require "featureomatic/version"
-require "featureomatic/engine"
+require "superfeature/version"
+require "superfeature/engine"
 
-require "featureomatic/version"
-require "featureomatic/engine"
-
-module Featureomatic
+module Superfeature
   def self.plan(&)
-    Class.new(Featureomatic::Plan, &)
+    Class.new(Superfeature::Plan, &)
   end
 
   class Feature

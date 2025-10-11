@@ -1,4 +1,4 @@
-# Featureomatic
+# Superfeature
 
 Features are simple boolean flags that say whether or not they're enabled, right? Not quite. Features can get quite complicated, as you'll read below in the use cases.
 
@@ -6,11 +6,11 @@ This gem makes reasoning through those complexities much more sane by isolating 
 
 ## Use cases
 
-Here's why you should use Featureomatic:
+Here's why you should use Superfeature:
 
 ### Turbo app built by a solopreneur deployed to the Apple App Store
 
-If you're deploying a simple Rails Turbo application to the web you might have 20 features that are available for purchase, but when deployed to the Apple App Store, you have to disable certain parts of your website to comply with their draconian app store policies. Featureomatic could disable the features that upset Apple, like links to your support and pricing, so that your app can get approved and stay in compliance.
+If you're deploying a simple Rails Turbo application to the web you might have 20 features that are available for purchase, but when deployed to the Apple App Store, you have to disable certain parts of your website to comply with their draconian app store policies. Superfeature could disable the features that upset Apple, like links to your support and pricing, so that your app can get approved and stay in compliance.
 
 ### B2B Rails app built by a 50 person engineering team for multinational enterprises
 
@@ -21,13 +21,13 @@ Enterprise use-cases are even more complicated. If a package is sold to a multi-
 Install the gem by executing the following from your Rails root:
 
 ```bash
-$ bundle add featureomatic
+$ bundle add superfeature
 ```
 
 Then run
 
 ```bash
-$ rails generate featureomatic:install
+$ rails generate superfeature:install
 ```
 
 Restart your server and it's off to the races!
@@ -35,7 +35,7 @@ Restart your server and it's off to the races!
 First thing you'll want to checkout is the `./app/plans/application_plan.rb` file:
 
 ```ruby
-class ApplicationPlan < Featureomatic::Plan
+class ApplicationPlan < Superfeature::Plan
   attr_reader :user, :account
 
   def initialize(user)
@@ -112,7 +112,7 @@ Flipper is probably the most extensive and mature feature flag libraries. It eve
 * UI for toggling features flags on/off
 * Controlling feature flags for everybody, specific people, groups of people, or a percentage of people.
 
-Featureomatic is different in that it:
+Superfeature is different in that it:
 
 * Feature flags are testable.
 * Features are versioned and tracked as code, which makes it easier to sync between environments if that's a requirement.

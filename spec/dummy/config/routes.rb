@@ -1,3 +1,3 @@
 Rails.application.routes.draw do
-  mount Featureomatic::Engine => "/featureomatic"
+  mount Superfeature::Engine => "/superfeature"
 end

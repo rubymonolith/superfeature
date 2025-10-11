@@ -1,4 +1,4 @@
 # desc "Explaining what the task does"
-# task :featureomatic do
+# task :superfeature do
 #   # Task goes here
 # end

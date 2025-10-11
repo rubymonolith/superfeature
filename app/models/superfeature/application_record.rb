@@ -1,4 +1,4 @@
-module Featureomatic
+module Superfeature
   class ApplicationRecord < ActiveRecord::Base
     self.abstract_class = true
   end

@@ -1,4 +1,4 @@
-module Featureomatic::Authorization
+module Superfeature::Authorization
   extend ActiveSupport::Concern
 
   included do

@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe Featureomatic do
+RSpec.describe Superfeature do
   describe ".plan" do
     subject(:plan_klass) do
       described_class.plan do
@@ -11,7 +11,7 @@ RSpec.describe Featureomatic do
     end
 
     it { is_expected.to be_a(Class) }
-    it { is_expected.to be < Featureomatic::Plan }
+    it { is_expected.to be < Superfeature::Plan }
 
     describe "instance" do
       subject { plan_klass.new }
@@ -20,7 +20,7 @@ RSpec.describe Featureomatic do
   end
 end
 
-RSpec.describe Featureomatic::Limit::Base do
+RSpec.describe Superfeature::Limit::Base do
   subject(:limit) { described_class.new }
 
   describe "#enabled?" do
@@ -34,7 +34,7 @@ RSpec.describe Featureomatic::Limit::Base do
   end
 end
 
-RSpec.describe Featureomatic::Limit::Hard do
+RSpec.describe Superfeature::Limit::Hard do
   subject(:limit) { described_class.new(quantity: quantity, maximum: maximum) }
 
   let(:quantity) { 50 }
@@ -118,7 +118,7 @@ RSpec.describe Featureomatic::Limit::Hard do
   end
 end
 
-RSpec.describe Featureomatic::Limit::Soft do
+RSpec.describe Superfeature::Limit::Soft do
   subject(:limit) { described_class.new(quantity: quantity, soft_limit: soft_limit, hard_limit: hard_limit) }
 
   let(:quantity) { 50 }
@@ -164,7 +164,7 @@ RSpec.describe Featureomatic::Limit::Soft do
   end
 end
 
-RSpec.describe Featureomatic::Limit::Unlimited do
+RSpec.describe Superfeature::Limit::Unlimited do
   subject(:limit) { described_class.new(quantity: quantity) }
 
   let(:quantity) { 1_000_000 }
@@ -192,7 +192,7 @@ RSpec.describe Featureomatic::Limit::Unlimited do
   end
 end
 
-RSpec.describe Featureomatic::Limit::Boolean do
+RSpec.describe Superfeature::Limit::Boolean do
   describe "when enabled" do
     subject(:limit) { described_class.new(enabled: true) }
 
@@ -222,9 +222,9 @@ RSpec.describe Featureomatic::Limit::Boolean do
   end
 end
 
-RSpec.describe Featureomatic::Feature do
+RSpec.describe Superfeature::Feature do
   let(:plan) { double("Plan", upgrade: nil, downgrade: nil) }
-  let(:limit) { Featureomatic::Limit::Boolean.new(enabled: true) }
+  let(:limit) { Superfeature::Limit::Boolean.new(enabled: true) }
   
   subject(:feature) { described_class.new(plan: plan, name: "API Access", limit: limit) }
 
@@ -264,9 +264,9 @@ RSpec.describe Featureomatic::Feature do
   end
 end
 
-RSpec.describe Featureomatic::Plan do
+RSpec.describe Superfeature::Plan do
   let(:plan_klass) do
-    Featureomatic.plan do
+    Superfeature.plan do
       def seats
         soft_limit quantity: 37, soft_limit: 100, hard_limit: 110
       end
@@ -298,19 +298,19 @@ RSpec.describe Featureomatic::Plan do
   describe "#seats (soft limit)" do
     subject { plan.seats }
     it { is_expected.to be_enabled }
-    it { is_expected.to be_a(Featureomatic::Limit::Soft) }
+    it { is_expected.to be_a(Superfeature::Limit::Soft) }
   end
 
   describe "#items (hard limit)" do
     subject { plan.items }
     it { is_expected.to be_enabled }
-    it { is_expected.to be_a(Featureomatic::Limit::Hard) }
+    it { is_expected.to be_a(Superfeature::Limit::Hard) }
   end
 
   describe "#unlimited_storage" do
     subject { plan.unlimited_storage }
     it { is_expected.to be_enabled }
-    it { is_expected.to be_a(Featureomatic::Limit::Unlimited) }
+    it { is_expected.to be_a(Superfeature::Limit::Unlimited) }
   end
 
   describe "#email_support (enabled)" do
@@ -328,7 +328,7 @@ RSpec.describe Featureomatic::Plan do
   describe "#priority_support (feature)" do
     subject { plan.priority_support }
     
-    it { is_expected.to be_a(Featureomatic::Feature) }
+    it { is_expected.to be_a(Superfeature::Feature) }
     it { is_expected.to be_enabled }
     
     describe "#name" do

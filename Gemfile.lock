@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    featureomatic (0.1.1)
+    superfeature (0.1.1)
       rails (>= 8.0)
 
 GEM
@@ -225,10 +225,10 @@ PLATFORMS
   x86_64-darwin-20
 
 DEPENDENCIES
-  featureomatic!
   rspec-rails
   sprockets-rails
   sqlite3
+  superfeature!
 
 BUNDLED WITH
    2.6.5

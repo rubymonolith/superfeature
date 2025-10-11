@@ -1,2 +1,2 @@
-Featureomatic::Engine.routes.draw do
+Superfeature::Engine.routes.draw do
 end
