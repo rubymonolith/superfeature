@@ -24,23 +24,42 @@ RSpec.describe Superfeature::Generators::InstallGenerator, type: :generator do
     expect(File.directory?(File.join(destination, "app/plans"))).to be true
   end
 
-  it "creates application_plan.rb" do
+  it "creates base.rb" do
     run_generator
-    expect(File.exist?(File.join(destination, "app/plans/application_plan.rb"))).to be true
+    expect(File.exist?(File.join(destination, "app/plans/base.rb"))).to be true
   end
 
-  it "creates ApplicationPlan class" do
+  it "creates Plans::Base class" do
     run_generator
-    content = File.read(File.join(destination, "app/plans/application_plan.rb"))
-    expect(content).to include("class ApplicationPlan < Superfeature::Plan")
+    content = File.read(File.join(destination, "app/plans/base.rb"))
+    expect(content).to include("class Base < Superfeature::Plan")
   end
 
-  it "includes example comments" do
+  it "includes feature type comments" do
     run_generator
-    content = File.read(File.join(destination, "app/plans/application_plan.rb"))
-    expect(content).to include("# Hard limit")
-    expect(content).to include("# Soft limit")
+    content = File.read(File.join(destination, "app/plans/base.rb"))
+    expect(content).to include("# Boolean features")
+    expect(content).to include("# Hard limits")
+    expect(content).to include("# Soft limits")
     expect(content).to include("# Unlimited")
-    expect(content).to include("# Boolean feature")
+  end
+
+  it "creates features/base.rb with name and group" do
+    run_generator
+    content = File.read(File.join(destination, "app/plans/features/base.rb"))
+    expect(content).to include("attr_reader :name, :group")
+  end
+
+  it "creates tiers/base.rb" do
+    run_generator
+    content = File.read(File.join(destination, "app/plans/tiers/base.rb"))
+    expect(content).to include("tier Plans::Free")
+    expect(content).to include("tier Plans::Paid")
+  end
+
+  it "creates free.rb and paid.rb plans" do
+    run_generator
+    expect(File.exist?(File.join(destination, "app/plans/free.rb"))).to be true
+    expect(File.exist?(File.join(destination, "app/plans/paid.rb"))).to be true
   end
 end

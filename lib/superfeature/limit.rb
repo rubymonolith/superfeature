@@ -32,7 +32,7 @@ module Superfeature
     end
 
     class Soft < Hard
-      attr_accessor :quantity, :soft_limit, :hard_limit
+      attr_accessor :soft_limit, :hard_limit
 
       def initialize(quantity:, soft_limit:, hard_limit:)
         @quantity = quantity
@@ -45,11 +45,6 @@ module Superfeature
       end
     end
 
-    # Unlimited is treated like a Soft, initialized with infinity values.
-    # It is recommended to set a `soft_limit` value based on the technical limitations
-    # of your application unless you're running a theoritcal Turing Machine.
-    #
-    # See https://en.wikipedia.org/wiki/Turing_machine for details.
     class Unlimited < Soft
       INFINITY = Float::INFINITY
 

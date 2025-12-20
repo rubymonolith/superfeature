@@ -1,18 +1,11 @@
 require 'rails_helper'
 
 RSpec.describe Superfeature::Feature do
-  let(:plan) { double("Plan", upgrade: nil, downgrade: nil) }
   let(:limit) { Superfeature::Limit::Boolean.new(enabled: true) }
-  
-  subject(:feature) { described_class.new(plan: plan, name: "API Access", limit: limit) }
 
-  describe "#name" do
-    subject { feature.name }
-    it { is_expected.to eq "API Access" }
-  end
+  subject(:feature) { described_class.new(limit:) }
 
   describe "#enabled?" do
-    subject { feature.enabled? }
     it "delegates to limit" do
       expect(limit).to receive(:enabled?)
       feature.enabled?
@@ -20,24 +13,23 @@ RSpec.describe Superfeature::Feature do
   end
 
   describe "#disabled?" do
-    subject { feature.disabled? }
     it "delegates to limit" do
       expect(limit).to receive(:disabled?)
       feature.disabled?
     end
   end
 
-  describe "#upgrade" do
-    it "delegates to plan" do
-      expect(plan).to receive(:upgrade)
-      feature.upgrade
-    end
+  describe "#boolean?" do
+    it { is_expected.to be_boolean }
   end
 
-  describe "#downgrade" do
-    it "delegates to plan" do
-      expect(plan).to receive(:downgrade)
-      feature.downgrade
-    end
+  describe "#hard_limit?" do
+    subject { described_class.new(limit: Superfeature::Limit::Hard.new(quantity: 5, maximum: 10)) }
+    it { is_expected.to be_hard_limit }
+  end
+
+  describe "#unlimited?" do
+    subject { described_class.new(limit: Superfeature::Limit::Unlimited.new) }
+    it { is_expected.to be_unlimited }
   end
 end

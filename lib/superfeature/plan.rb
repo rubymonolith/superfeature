@@ -1,34 +1,46 @@
 module Superfeature
   class Plan
-    def upgrade
-    end
+    class << self
+      def features
+        ((superclass.respond_to?(:features) ? superclass.features : []) + @features.to_a).uniq
+      end
 
-    def downgrade
+      def feature(method_name)
+        (@features ||= []) << method_name
+        method_name
+      end
     end
 
     protected
-      def hard_limit(**)
-        Limit::Hard.new(**)
-      end
 
-      def soft_limit(**)
-        Limit::Soft.new(**)
-      end
+    def feature(*, **, &)
+      Feature.new(*, **, &)
+    end
 
-      def unlimited(**)
-        Limit::Unlimited.new(**)
-      end
+    def enable(*, **)
+      feature(*, **, limit: Limit::Boolean.new(enabled: true))
+    end
 
-      def enabled(value = true, **)
-        Limit::Boolean.new enabled: value, **
-      end
+    def disable(*, **)
+      feature(*, **, limit: Limit::Boolean.new(enabled: false))
+    end
 
-      def disabled(value = true)
-        enabled !value
-      end
+    def hard_limit(*, quantity:, maximum:, **)
+      feature(*, **, limit: Limit::Hard.new(quantity:, maximum:))
+    end
 
-      def feature(name, **)
-        Feature.new(plan: self, name:, **)
-      end
+    def soft_limit(*, quantity:, soft_limit:, hard_limit:, **)
+      feature(*, **, limit: Limit::Soft.new(quantity:, soft_limit:, hard_limit:))
+    end
+
+    def unlimited(*, quantity: nil, **)
+      feature(*, **, limit: Limit::Unlimited.new(quantity:))
+    end
+
+    public
+
+    def features
+      self.class.features.map { |m| send(m) }
+    end
   end
 end

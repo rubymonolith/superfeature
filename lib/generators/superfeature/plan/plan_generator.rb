@@ -12,15 +12,15 @@ module Superfeature
       private
 
       def file_name
-        # Remove "plan" suffix if it exists to avoid PlanPlan
+        # Remove "_plan" suffix if provided
         name = super
-        name.end_with?("_plan") ? name : "#{name}_plan"
+        name.delete_suffix("_plan")
       end
 
       def class_name
-        # Remove "Plan" suffix if it exists to avoid PlanPlan
+        # Remove "Plan" suffix if provided
         name = super
-        name.end_with?("Plan") ? name : "#{name}Plan"
+        name.delete_suffix("Plan")
       end
     end
   end

@@ -1,13 +1,10 @@
-class <%= class_name %> < ApplicationPlan
-  # Override or add features specific to this plan
-  
-  # Example: Enable a feature for this plan
-  # def advanced_analytics
-  #   enabled
-  # end
-  
-  # Example: Set specific limits for this plan
-  # def api_calls
-  #   hard_limit quantity: account.api_calls_count, maximum: 10000
-  # end
+module Plans
+  class <%= class_name %> < Base
+    def name = "<%= class_name %>"
+    def price = 0
+    def description = "Description for <%= class_name %> plan"
+
+    # Override features from Base to enable them
+    # def priority_support = super.enable
+  end
 end

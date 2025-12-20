@@ -1,28 +1,8 @@
 require 'rails_helper'
 
-RSpec.describe Superfeature do
-  describe ".plan" do
-    subject(:plan_klass) do
-      described_class.plan do
-        def api_calls
-          hard_limit quantity: 50, maximum: 100
-        end
-      end
-    end
-
-    it { is_expected.to be_a(Class) }
-    it { is_expected.to be < Superfeature::Plan }
-
-    describe "instance" do
-      subject { plan_klass.new }
-      it { is_expected.to respond_to(:api_calls) }
-    end
-  end
-end
-
 RSpec.describe Superfeature::Plan do
   let(:plan_klass) do
-    Superfeature.plan do
+    Class.new(Superfeature::Plan) do
       def seats
         soft_limit quantity: 37, soft_limit: 100, hard_limit: 110
       end
@@ -36,15 +16,11 @@ RSpec.describe Superfeature::Plan do
       end
 
       def email_support
-        enabled
+        enable
       end
 
       def phone_support
-        disabled
-      end
-
-      def priority_support
-        feature "Priority Support", limit: enabled
+        disable
       end
     end
   end
@@ -54,52 +30,66 @@ RSpec.describe Superfeature::Plan do
   describe "#seats (soft limit)" do
     subject { plan.seats }
     it { is_expected.to be_enabled }
-    it { is_expected.to be_a(Superfeature::Limit::Soft) }
+    it { is_expected.to be_a(Superfeature::Feature) }
+    it { is_expected.to be_soft_limit }
   end
 
   describe "#items (hard limit)" do
     subject { plan.items }
     it { is_expected.to be_enabled }
-    it { is_expected.to be_a(Superfeature::Limit::Hard) }
+    it { is_expected.to be_a(Superfeature::Feature) }
+    it { is_expected.to be_hard_limit }
   end
 
   describe "#unlimited_storage" do
     subject { plan.unlimited_storage }
     it { is_expected.to be_enabled }
-    it { is_expected.to be_a(Superfeature::Limit::Unlimited) }
+    it { is_expected.to be_a(Superfeature::Feature) }
+    it { is_expected.to be_unlimited }
   end
 
   describe "#email_support (enabled)" do
     subject { plan.email_support }
+    it { is_expected.to be_a(Superfeature::Feature) }
     it { is_expected.to be_enabled }
     it { is_expected.not_to be_disabled }
   end
 
   describe "#phone_support (disabled)" do
     subject { plan.phone_support }
+    it { is_expected.to be_a(Superfeature::Feature) }
     it { is_expected.to be_disabled }
     it { is_expected.not_to be_enabled }
   end
 
-  describe "#priority_support (feature)" do
-    subject { plan.priority_support }
-    
-    it { is_expected.to be_a(Superfeature::Feature) }
-    it { is_expected.to be_enabled }
-    
-    describe "#name" do
-      subject { plan.priority_support.name }
-      it { is_expected.to eq "Priority Support" }
+  describe "inheritance" do
+    let(:base_plan) do
+      Class.new(Superfeature::Plan) do
+        def basic
+          enable
+        end
+
+        def premium
+          disable
+        end
+      end
     end
-  end
 
-  describe "#upgrade" do
-    subject { plan.upgrade }
-    it { is_expected.to be_nil }
-  end
+    let(:upgraded_plan) do
+      Class.new(base_plan) do
+        def premium
+          enable
+        end
+      end
+    end
 
-  describe "#downgrade" do
-    subject { plan.downgrade }
-    it { is_expected.to be_nil }
+    it "inherits features from parent" do
+      expect(upgraded_plan.new.basic).to be_enabled
+    end
+
+    it "can override features" do
+      expect(base_plan.new.premium).to be_disabled
+      expect(upgraded_plan.new.premium).to be_enabled
+    end
   end
 end

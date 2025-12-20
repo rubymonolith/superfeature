@@ -20,55 +20,49 @@ RSpec.describe Superfeature::Generators::PlanGenerator, type: :generator do
   end
 
   context "with simple plan name" do
-    it "creates plan file with correct name" do
+    it "creates plan file" do
       run_generator(%w[Enterprise])
-      expect(File.exist?(File.join(destination, "app/plans/enterprise_plan.rb"))).to be true
+      expect(File.exist?(File.join(destination, "app/plans/enterprise.rb"))).to be true
     end
 
     it "creates correct class name" do
       run_generator(%w[Enterprise])
-      content = File.read(File.join(destination, "app/plans/enterprise_plan.rb"))
-      expect(content).to include("class EnterprisePlan < ApplicationPlan")
-    end
-
-    it "does not create EnterprisePlanPlan" do
-      run_generator(%w[Enterprise])
-      content = File.read(File.join(destination, "app/plans/enterprise_plan.rb"))
-      expect(content).not_to include("EnterprisePlanPlan")
+      content = File.read(File.join(destination, "app/plans/enterprise.rb"))
+      expect(content).to include("class Enterprise < Base")
     end
   end
 
   context "with plan name already ending in Plan" do
-    it "creates plan file without duplicate plan suffix" do
+    it "strips Plan suffix from file name" do
       run_generator(%w[EnterprisePlan])
-      expect(File.exist?(File.join(destination, "app/plans/enterprise_plan.rb"))).to be true
+      expect(File.exist?(File.join(destination, "app/plans/enterprise.rb"))).to be true
     end
 
-    it "does not create PlanPlan" do
+    it "strips Plan suffix from class name" do
       run_generator(%w[EnterprisePlan])
-      content = File.read(File.join(destination, "app/plans/enterprise_plan.rb"))
-      expect(content).to include("class EnterprisePlan < ApplicationPlan")
-      expect(content).not_to include("PlanPlan")
+      content = File.read(File.join(destination, "app/plans/enterprise.rb"))
+      expect(content).to include("class Enterprise < Base")
+      expect(content).not_to include("EnterprisePlan")
     end
   end
 
   context "with underscored name" do
     it "creates plan file" do
       run_generator(%w[pro_tier])
-      expect(File.exist?(File.join(destination, "app/plans/pro_tier_plan.rb"))).to be true
+      expect(File.exist?(File.join(destination, "app/plans/pro_tier.rb"))).to be true
     end
 
     it "creates correct class name" do
       run_generator(%w[pro_tier])
-      content = File.read(File.join(destination, "app/plans/pro_tier_plan.rb"))
-      expect(content).to include("class ProTierPlan < ApplicationPlan")
+      content = File.read(File.join(destination, "app/plans/pro_tier.rb"))
+      expect(content).to include("class ProTier < Base")
     end
   end
 
-  it "includes example comments" do
+  it "includes override example comment" do
     run_generator(%w[Premium])
-    content = File.read(File.join(destination, "app/plans/premium_plan.rb"))
-    expect(content).to include("# Example:")
-    expect(content).to include("ApplicationPlan")
+    content = File.read(File.join(destination, "app/plans/premium.rb"))
+    expect(content).to include("# Override features from Base")
+    expect(content).to include("super.enable")
   end
 end
