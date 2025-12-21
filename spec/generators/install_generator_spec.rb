@@ -50,11 +50,16 @@ RSpec.describe Superfeature::Generators::InstallGenerator, type: :generator do
     expect(content).to include("attr_reader :name, :group")
   end
 
-  it "creates tiers/base.rb" do
+  it "creates free.rb with next method" do
     run_generator
-    content = File.read(File.join(destination, "app/plans/tiers/base.rb"))
-    expect(content).to include("tier Plans::Free")
-    expect(content).to include("tier Plans::Paid")
+    content = File.read(File.join(destination, "app/plans/free.rb"))
+    expect(content).to include("def next = plan(Paid)")
+  end
+
+  it "creates paid.rb with previous method" do
+    run_generator
+    content = File.read(File.join(destination, "app/plans/paid.rb"))
+    expect(content).to include("def previous = plan(Free)")
   end
 
   it "creates free.rb and paid.rb plans" do

@@ -11,7 +11,21 @@ module Superfeature
       end
     end
 
+    def key
+      self.class.name.split("::").last.gsub(/([a-z])([A-Z])/, '\1_\2').downcase.to_sym
+    end
+
+    alias_method :to_param, :key
+
+    def features
+      self.class.features.map { |m| send(m) }
+    end
+
     protected
+
+    def plan(klass)
+      klass.new(user)
+    end
 
     def feature(*, **, &)
       Feature.new(*, **, &)
@@ -35,12 +49,6 @@ module Superfeature
 
     def unlimited(*, quantity: nil, **)
       feature(*, **, limit: Limit::Unlimited.new(quantity:))
-    end
-
-    public
-
-    def features
-      self.class.features.map { |m| send(m) }
     end
   end
 end

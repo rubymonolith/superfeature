@@ -50,31 +50,20 @@ module Plans
     end
 
     # Boolean features - simple on/off flags
-    feature def priority_support
-      disable("Priority support", group: "Support")
-    end
-
-    feature def phone_support
-      disable("Phone support", group: "Support")
-    end
+    feature def priority_support = disable("Priority support", group: "Support")
+    feature def phone_support = disable("Phone support", group: "Support")
 
     # Hard limits - strict maximum that cannot be exceeded
-    feature def api_calls
-      hard_limit("API calls", group: "Limits", quantity: user.api_calls_count, maximum: 1000)
-    end
+    feature def api_calls = hard_limit("API calls", group: "Limits", quantity: user.api_calls_count, maximum: 1000)
 
     # Soft limits - has a soft and hard boundary for overages
-    feature def storage_gb
-      soft_limit("Storage", group: "Limits", quantity: user.storage_used_gb, soft_limit: 100, hard_limit: 150)
-    end
+    feature def storage_gb = soft_limit("Storage", group: "Limits", quantity: user.storage_used_gb, soft_limit: 100, hard_limit: 150)
 
     # Unlimited - no restrictions
-    feature def projects
-      unlimited("Projects", group: "Limits", quantity: user.projects_count)
-    end
-  
+    feature def projects = unlimited("Projects", group: "Limits", quantity: user.projects_count)
+
     protected
-  
+
     def feature(name, **options)
       Features::Base.new(name, **options)
     end
@@ -104,24 +93,9 @@ end
 
 You can add whatever else you want to a feature class, including logic, calculation methods, new types of limits, and more.
 
-### `app/plans/tiers/base.rb`
-
-Registers the order of your plans for pricing pages and upgrades:
-
-```ruby
-module Plans
-  module Tiers
-    class Base < Superfeature::Tiers
-      tier Plans::Free
-      tier Plans::Paid
-    end
-  end
-end
-```
-
 ### `app/plans/free.rb` and `app/plans/paid.rb`
 
-Example tier plans:
+Plans are linked together using `next` and `previous` methods:
 
 ```ruby
 module Plans
@@ -129,53 +103,58 @@ module Plans
     def name = "Free"
     def price = 0
     def description = "Get started for free"
+
+    def next = plan Paid
   end
 end
 
 module Plans
-  class Paid < Base
+  class Paid < Free
     def name = "Paid"
     def price = 9.99
     def description = "Full access to all features"
 
     # Override features from Base to enable them
     def priority_support = super.enable
+
+    def next = nil
+    def previous = plan Free
   end
 end
 ```
 
-This logic is useful for determinig if a current user is upgrading or downgrading their plan.
+The `next` and `previous` methods create a linked list of plans that `Superfeature::Plan::Collection` can traverse.
 
 ## Usage
 
-### Setting up User#tier and User#plan
+### Setting up User#plan
 
-Add a `plan` column to your users table to track which tier they're on:
+Add a `plan` column to your users table to track which plan they're on:
 
 ```ruby
 add_column :users, :plan, :string, default: "free"
 ```
 
-Then add `tier` and `plan` methods to your User model:
+Then add a `plan` method to your User model:
 
 ```ruby
 class User < ApplicationRecord
-  def tier
-    Plans::Tiers::Base.build(plan, user: self)
+  def plan
+    @plan ||= Superfeature::Plan::Collection.new(Plans::Free.new(self)).find(plan_key)
   end
 
-  delegate :plan, to: :tier, prefix: :current
+  def plan_key
+    self[:plan]&.to_sym || :free
+  end
 end
 ```
 
 Now you can access features directly from the user:
 
 ```ruby
-current_user.tier          # => Superfeature::Tier (wraps the plan with next/previous)
-current_user.current_plan  # => Plans::Free or Plans::Paid (the actual plan instance)
-
-current_user.current_plan.priority_support.enabled?  # => false
-current_user.tier.next                               # => Paid tier (for upgrades)
+current_user.plan                          # => Collection wrapping Plans::Free or Plans::Paid
+current_user.plan.priority_support.enabled? # => false
+current_user.plan.upgrades.to_a            # => available upgrade plans
 ```
 
 ### Checking features in controllers
@@ -193,7 +172,7 @@ class ModerationController < ApplicationController
   private
 
   def current_plan
-    @current_plan ||= Plans::Base.new(current_user)
+    @current_plan ||= current_user.plan
   end
   helper_method :current_plan
 end
@@ -210,32 +189,71 @@ end
 <% end %>
 ```
 
-### Working with tiers
+### Working with Plan::Collection
+
+The `Collection` class wraps a plan and provides navigation and enumeration:
 
 ```ruby
-# Get all tiers for a pricing page
-tiers = Plans::Tiers::Base.all(user: current_user)
+# Create a collection starting from any plan
+collection = Superfeature::Plan::Collection.new(Plans::Free.new(current_user))
 
-tiers.each do |tier|
-  puts tier.name        # "Free", "Paid"
-  puts tier.price       # 0, 9.99
-  puts tier.description # "Get started for free", etc.
-  
-  tier.features.each do |feature|
-    puts "#{feature.name}: #{feature.enabled? ? 'Yes' : 'No'}"
-  end
+# Find a specific plan by key
+collection.find(:paid)  # => Collection wrapping Paid plan
+
+# Navigate between plans
+collection.next      # => Collection wrapping next plan, or nil
+collection.previous  # => Collection wrapping previous plan, or nil
+
+# Get upgrade/downgrade options
+collection.upgrades.each do |plan|
+  puts plan.name  # Plans after the current one
 end
 
-# Navigate between tiers
-tier = Plans::Tiers::Base.build(:free, user: current_user)
-tier.next      # => Paid tier
-tier.previous  # => nil (first tier)
+collection.downgrades.each do |plan|
+  puts plan.name  # Plans before the current one
+end
+
+# Iterate through all plans (includes Enumerable)
+collection.each do |plan|
+  puts "#{plan.name}: $#{plan.price}"
+end
+
+collection.to_a  # All plans as an array
+```
+
+### Building a pricing page
+
+```ruby
+# In controller
+def index
+  @plans = Superfeature::Plan::Collection.new(Plans::Free.new(User.new)).to_a
+end
+
+# In view
+<% @plans.each do |plan| %>
+  <div class="plan">
+    <h2><%= plan.name %></h2>
+    <p class="price">$<%= plan.price %>/month</p>
+    <p><%= plan.description %></p>
+
+    <ul>
+      <% plan.features.each do |feature| %>
+        <li>
+          <%= feature.name %>:
+          <%= feature.enabled? ? "✓" : "—" %>
+        </li>
+      <% end %>
+    </ul>
+
+    <%= link_to "Select", plan_path(plan) %>
+  </div>
+<% end %>
 ```
 
 ### Checking limits
 
 ```ruby
-plan = Plans::Base.new(current_user)
+plan = current_user.plan
 
 # Hard limits
 if plan.api_calls.exceeded?
@@ -270,22 +288,22 @@ module Plans
 
     # Override features from Base to enable them
     # def priority_support = super.enable
+
+    # Link to adjacent plans for navigation
+    # def next = plan NextPlan
+    # def previous = plan PreviousPlan
   end
 end
 ```
 
-Then register it in `app/plans/tiers/base.rb`:
+Then wire it into your plan chain by updating `next` and `previous` methods:
 
 ```ruby
-module Plans
-  module Tiers
-    class Base < Superfeature::Tiers
-      tier Plans::Free
-      tier Plans::Paid
-      tier Plans::Enterprise
-    end
-  end
-end
+# In paid.rb
+def next = plan Enterprise
+
+# In enterprise.rb
+def previous = plan Paid
 ```
 
 ## Comparable libraries

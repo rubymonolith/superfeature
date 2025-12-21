@@ -8,7 +8,6 @@ module Superfeature
       def create_plans_directory
         empty_directory "app/plans"
         empty_directory "app/plans/features"
-        empty_directory "app/plans/tiers"
       end
 
       def copy_base_plan
@@ -17,10 +16,6 @@ module Superfeature
 
       def copy_features_base
         template "features/base.rb", "app/plans/features/base.rb"
-      end
-
-      def copy_tiers_base
-        template "tiers/base.rb", "app/plans/tiers/base.rb"
       end
 
       def copy_plans

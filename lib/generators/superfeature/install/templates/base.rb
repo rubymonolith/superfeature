@@ -6,10 +6,8 @@ module Plans
       @user = user
     end
 
-    def feature(...) = Features::Base.new(...)
-
     # Boolean features - simple on/off flags
-    # feature def priority_support = enable("Priority support", group: "Support")
+    # feature def priority_support = disable("Priority support", group: "Support")
     # feature def phone_support = disable("Phone support", group: "Support")
 
     # Hard limits - strict maximum that cannot be exceeded
@@ -20,5 +18,9 @@ module Plans
 
     # Unlimited - no restrictions
     # feature def projects = unlimited("Projects", group: "Limits", quantity: user.projects_count)
+
+    protected
+
+    def feature(...) = Features::Base.new(...)
   end
 end

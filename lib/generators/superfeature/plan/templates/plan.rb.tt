@@ -6,5 +6,9 @@ module Plans
 
     # Override features from Base to enable them
     # def priority_support = super.enable
+
+    # Link to adjacent plans for navigation
+    # def next = plan(NextPlan)
+    # def previous = plan(PreviousPlan)
   end
 end
