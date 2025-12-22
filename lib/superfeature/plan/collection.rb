@@ -21,7 +21,12 @@ module Superfeature
       end
 
       def find(key)
-        each.find { |p| p.key == key.to_sym }
+        slice(key).first
+      end
+
+      def slice(*keys)
+        keys = keys.map { |key| normalize_key(key) }
+        each.select { |p| keys.include?(p.key) }
       end
 
       def next
@@ -51,6 +56,17 @@ module Superfeature
             nodes.unshift(node)
           end
           nodes.each { |n| y << n }
+        end
+      end
+
+      private
+
+      def normalize_key(key)
+        case key
+        when Class
+          key.name.demodulize.underscore.to_sym
+        when Symbol
+          key
         end
       end
     end
