@@ -276,6 +276,25 @@ plan.priority_support.enabled?  # => false
 plan.priority_support.disabled? # => true
 ```
 
+### Preventing inheritance with `exclusively`
+
+When plans inherit from each other, methods are inherited too. Sometimes you want a method to only apply to the exact class it's defined in, not subclasses. Use `exclusively`:
+
+```ruby
+module Plans
+  class Pro < Basic
+    # Only Pro gets this badge, not Enterprise which inherits from Pro
+    exclusively def badge = "Most Popular"
+  end
+end
+
+module Plans
+  class Enterprise < Pro
+    # badge returns nil here, not "Most Popular"
+  end
+end
+```
+
 ## Adding new plans
 
 Generate a new plan:

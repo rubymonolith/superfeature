@@ -9,6 +9,14 @@ module Superfeature
         (@features ||= []) << method_name
         method_name
       end
+
+      def exclusively(method_name)
+        klass = self
+        original = instance_method(method_name)
+        define_method(method_name) do
+          original.bind(self).call if instance_of?(klass)
+        end
+      end
     end
 
     def key

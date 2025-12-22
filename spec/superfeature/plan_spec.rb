@@ -92,4 +92,34 @@ RSpec.describe Superfeature::Plan do
       expect(upgraded_plan.new.premium).to be_enabled
     end
   end
+
+  describe ".exclusively" do
+    let(:base_plan) do
+      Class.new(Superfeature::Plan) do
+        def badge = nil
+      end
+    end
+
+    let(:pro_plan) do
+      Class.new(base_plan) do
+        exclusively def badge = "Most Popular"
+      end
+    end
+
+    let(:enterprise_plan) do
+      Class.new(pro_plan)
+    end
+
+    it "returns value for the exact class" do
+      expect(pro_plan.new.badge).to eq "Most Popular"
+    end
+
+    it "returns nil for subclasses" do
+      expect(enterprise_plan.new.badge).to be_nil
+    end
+
+    it "returns nil for parent class" do
+      expect(base_plan.new.badge).to be_nil
+    end
+  end
 end
