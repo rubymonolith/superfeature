@@ -21,12 +21,12 @@ module Superfeature
       end
 
       def find(key)
-        slice(key).first
+        key = normalize_key(key)
+        each.find { |p| p.key.to_s == key }
       end
 
       def slice(*keys)
-        keys = keys.map { |key| normalize_key(key) }
-        each.select { |p| keys.include?(p.key.to_s) }
+        keys.filter_map { |key| find(key) }
       end
 
       def next
