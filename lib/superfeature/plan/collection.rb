@@ -26,7 +26,7 @@ module Superfeature
 
       def slice(*keys)
         keys = keys.map { |key| normalize_key(key) }
-        each.select { |p| keys.include?(p.key) }
+        each.select { |p| keys.include?(p.key.to_s) }
       end
 
       def next
@@ -64,8 +64,10 @@ module Superfeature
       def normalize_key(key)
         case key
         when Class
-          key.name.demodulize.underscore.to_sym
+          key.name.demodulize.underscore
         when Symbol
+          key.to_s
+        when String
           key
         end
       end
