@@ -3,11 +3,6 @@ module Superfeature
     class Collection
       include Enumerable
 
-      attr_reader :plan
-
-      delegate_missing_to :plan
-      delegate :to_param, to: :plan
-
       def initialize(plan)
         @plan = plan
       end
@@ -16,7 +11,7 @@ module Superfeature
         return enum_for(:each) unless block_given?
 
         downgrades.each(&)
-        yield self
+        yield @plan
         upgrades.each(&)
       end
 
@@ -29,20 +24,22 @@ module Superfeature
         keys.filter_map { |key| find(key) }
       end
 
-      def next
-        return nil unless plan.class.method_defined?(:next, false)
-        Collection.new(plan.next)
+      private
+
+      def next_plan
+        return nil unless @plan.class.method_defined?(:next, false)
+        @plan.next
       end
 
-      def previous
-        return nil unless plan.class.method_defined?(:previous, false)
-        Collection.new(plan.previous)
+      def previous_plan
+        return nil unless @plan.class.method_defined?(:previous, false)
+        @plan.previous
       end
 
       def upgrades
         Enumerator.new do |y|
-          node = self
-          while (node = node.next)
+          node = @plan
+          while (node = node.class.method_defined?(:next, false) ? node.next : nil)
             y << node
           end
         end
@@ -50,16 +47,14 @@ module Superfeature
 
       def downgrades
         Enumerator.new do |y|
-          node = self
+          node = @plan
           nodes = []
-          while (node = node.previous)
+          while (node = node.class.method_defined?(:previous, false) ? node.previous : nil)
             nodes.unshift(node)
           end
           nodes.each { |n| y << n }
         end
       end
-
-      private
 
       def normalize_key(key)
         case key

@@ -198,27 +198,14 @@ The `Collection` class wraps a plan and provides navigation and enumeration:
 collection = Superfeature::Plan::Collection.new(Plans::Free.new(current_user))
 
 # Find a specific plan by symbol key
-collection.find(:paid)  # => Collection wrapping Paid plan
+collection.find(:paid)  # => Paid plan instance
 
 # Find a specific plan by class
-collection.find(Plans::Paid)  # => Collection wrapping Paid plan
+collection.find(Plans::Paid)  # => Paid plan instance
 
 # Get multiple plans with slice
 collection.slice(:free, :paid)  # => Array of matching plans
 collection.slice(Plans::Free, Plans::Paid)  # => Also works with classes
-
-# Navigate between plans
-collection.next      # => Collection wrapping next plan, or nil
-collection.previous  # => Collection wrapping previous plan, or nil
-
-# Get upgrade/downgrade options
-collection.upgrades.each do |plan|
-  puts plan.name  # Plans after the current one
-end
-
-collection.downgrades.each do |plan|
-  puts plan.name  # Plans before the current one
-end
 
 # Iterate through all plans (includes Enumerable)
 collection.each do |plan|
