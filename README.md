@@ -331,6 +331,7 @@ price.discount_percent(0.25)  # => $75.00 (25% off)
 price.discount("25%")         # => $75.00 (parses string)
 price.discount("$20")         # => $80.00 (parses string)
 price.discount(20)            # => $80.00 (numeric = dollars)
+price.to(80)                  # => $80.00 (set target price directly)
 
 # Chain discounts
 price = Superfeature::Price.new(100.00)

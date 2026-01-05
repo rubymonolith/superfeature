@@ -45,6 +45,12 @@ module Superfeature
       Price.new(new_amount, original: self, amount_precision: @amount_precision, percent_precision: @percent_precision)
     end
 
+    # Set the price to a specific amount (calculates discount from current amount)
+    # Price(300).to(200) is equivalent to Price(300).discount_fixed(100)
+    def to(new_amount)
+      discount_fixed([@amount - new_amount.to_f, 0].max)
+    end
+
     # Apply a percentage discount (decimal, e.g., 0.25 for 25%)
     def discount_percent(percent)
       discount_amount = @amount * percent.to_f

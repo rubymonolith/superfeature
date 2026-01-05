@@ -158,6 +158,54 @@ module Superfeature
       end
     end
 
+    describe '#to' do
+      it 'sets the price to the specified amount' do
+        price = Price.new(300).to(200)
+        expect(price.amount).to eq(200.0)
+      end
+
+      it 'is equivalent to discount_fixed with the difference' do
+        price_to = Price.new(300).to(200)
+        price_fixed = Price.new(300).discount_fixed(100)
+        expect(price_to.amount).to eq(price_fixed.amount)
+      end
+
+      it 'preserves the original price' do
+        price = Price.new(300).to(200)
+        expect(price.original.amount).to eq(300.0)
+      end
+
+      it 'calculates the correct fixed_discount' do
+        price = Price.new(300).to(200)
+        expect(price.fixed_discount).to eq(100.0)
+      end
+
+      it 'calculates the correct percent_discount' do
+        price = Price.new(300).to(200)
+        expect(price.percent_discount).to be_within(0.0001).of(0.3333)
+      end
+
+      it 'returns original price when target is higher' do
+        price = Price.new(100).to(150)
+        expect(price.amount).to eq(100.0)
+      end
+
+      it 'converts target amount to float' do
+        price = Price.new(300).to("200")
+        expect(price.amount).to eq(200.0)
+      end
+
+      it 'preserves precision settings' do
+        price = Price.new(300.0, amount_precision: 3).to(200.0)
+        expect(price.amount_precision).to eq(3)
+      end
+
+      it 'works in discount chains' do
+        price = Price.new(300).to(250).discount_fixed(10)
+        expect(price.amount).to eq(240.0)
+      end
+    end
+
     describe '#discount_percent' do
       it 'applies percentage discount' do
         price = Price.new(100.0).discount_percent(0.25)
