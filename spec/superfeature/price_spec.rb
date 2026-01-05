@@ -1,5 +1,26 @@
 require 'rails_helper'
 
+RSpec.describe "Superfeature::Price() convenience method" do
+  it 'creates a Price via module method' do
+    price = Superfeature::Price(100)
+    expect(price).to be_a(Superfeature::Price)
+    expect(price.amount).to eq(100.0)
+  end
+
+  it 'passes options through' do
+    price = Superfeature::Price(100, amount_precision: 3)
+    expect(price.amount_precision).to eq(3)
+  end
+
+  it 'works when included' do
+    klass = Class.new { include Superfeature }
+    obj = klass.new
+    price = obj.Price(50)
+    expect(price).to be_a(Superfeature::Price)
+    expect(price.amount).to eq(50.0)
+  end
+end
+
 module Superfeature
   RSpec.describe Price do
     describe '#initialize' do
@@ -22,39 +43,118 @@ module Superfeature
         price = Price.new(49.99)
         expect(price.original).to be_nil
       end
+
+      it 'uses default amount precision' do
+        price = Price.new(49.99)
+        expect(price.amount_precision).to eq(2)
+      end
+
+      it 'uses default percent precision' do
+        price = Price.new(49.99)
+        expect(price.percent_precision).to eq(4)
+      end
+
+      it 'accepts custom amount precision' do
+        price = Price.new(49.99, amount_precision: 3)
+        expect(price.amount_precision).to eq(3)
+      end
+
+      it 'accepts custom percent precision' do
+        price = Price.new(49.99, percent_precision: 6)
+        expect(price.percent_precision).to eq(6)
+      end
     end
 
     describe '#discount' do
+      context 'with numeric value' do
+        it 'treats numeric as fixed dollar discount' do
+          price = Price.new(100.0).discount(20)
+          expect(price.amount).to eq(80.0)
+        end
+
+        it 'treats decimal as cents, not percent' do
+          price = Price.new(100.0).discount(0.80)
+          expect(price.amount).to eq(99.2)
+        end
+      end
+
+      context 'with percent string' do
+        it 'parses "25%" as 25% off' do
+          price = Price.new(100.0).discount("25%")
+          expect(price.amount).to eq(75.0)
+        end
+
+        it 'parses "50%" as 50% off' do
+          price = Price.new(100.0).discount("50%")
+          expect(price.amount).to eq(50.0)
+        end
+
+        it 'parses "10.5%" as 10.5% off' do
+          price = Price.new(100.0).discount("10.5%")
+          expect(price.amount).to eq(89.5)
+        end
+      end
+
+      context 'with dollar string' do
+        it 'parses "$20" as $20 off' do
+          price = Price.new(100.0).discount("$20")
+          expect(price.amount).to eq(80.0)
+        end
+
+        it 'parses "20" as $20 off' do
+          price = Price.new(100.0).discount("20")
+          expect(price.amount).to eq(80.0)
+        end
+
+        it 'parses "$19.99" as $19.99 off' do
+          price = Price.new(100.0).discount("$19.99")
+          expect(price.amount).to eq(80.01)
+        end
+      end
+
+      context 'with invalid input' do
+        it 'raises ArgumentError for invalid format' do
+          expect { Price.new(100.0).discount("invalid") }.to raise_error(ArgumentError)
+        end
+      end
+    end
+
+    describe '#discount_fixed' do
       it 'returns a new Price with discount applied' do
-        price = Price.new(49.99).discount(20.00)
+        price = Price.new(49.99).discount_fixed(20.00)
         expect(price.amount).to eq(29.99)
       end
 
       it 'preserves the original price' do
-        price = Price.new(49.99).discount(20.00)
+        price = Price.new(49.99).discount_fixed(20.00)
         expect(price.original.amount).to eq(49.99)
       end
 
       it 'does not modify the original Price object' do
         original = Price.new(49.99)
-        discounted = original.discount(20.00)
+        discounted = original.discount_fixed(20.00)
         expect(original.amount).to eq(49.99)
         expect(discounted.amount).to eq(29.99)
       end
 
       it 'handles zero discount' do
-        price = Price.new(100.0).discount(0)
+        price = Price.new(100.0).discount_fixed(0)
         expect(price.amount).to eq(100.0)
       end
 
       it 'does not allow negative prices' do
-        price = Price.new(49.99).discount(60.00)
+        price = Price.new(49.99).discount_fixed(60.00)
         expect(price.amount).to eq(0)
       end
 
       it 'converts discount to float' do
-        price = Price.new(50).discount("10")
+        price = Price.new(50).discount_fixed("10")
         expect(price.amount).to eq(40.0)
+      end
+
+      it 'preserves precision settings' do
+        price = Price.new(100.0, amount_precision: 3).discount_fixed(20.0)
+        expect(price.amount_precision).to eq(3)
       end
     end
 
@@ -79,7 +179,7 @@ module Superfeature
         expect(price.amount).to eq(90.0)
       end
 
-      it 'rounds to 2 decimal places' do
+      it 'rounds to configured precision' do
         price = Price.new(99.99).discount_percent(0.333)
         expect(price.amount).to eq(66.69)
       end
@@ -93,91 +193,83 @@ module Superfeature
         price = Price.new(100).discount_percent("0.25")
         expect(price.amount).to eq(75.0)
       end
+
+      it 'preserves precision settings' do
+        price = Price.new(100.0, percent_precision: 6).discount_percent(0.25)
+        expect(price.percent_precision).to eq(6)
+      end
     end
 
-    describe '#discount_amount' do
+    describe '#fixed_discount' do
       it 'returns the dollar amount discounted' do
-        price = Price.new(49.99).discount(20.00)
-        expect(price.discount_amount).to eq(20.00)
+        price = Price.new(49.99).discount_fixed(20.00)
+        expect(price.fixed_discount).to eq(20.00)
       end
 
       it 'calculates from percentage discount' do
         price = Price.new(100.0).discount_percent(0.25)
-        expect(price.discount_amount).to eq(25.0)
+        expect(price.fixed_discount).to eq(25.0)
       end
 
       it 'returns 0 for non-discounted price' do
         price = Price.new(49.99)
-        expect(price.discount_amount).to eq(0.0)
+        expect(price.fixed_discount).to eq(0.0)
       end
 
-      it 'rounds to 2 decimal places' do
-        price = Price.new(99.99).discount_percent(0.333)
-        expect(price.discount_amount).to eq(33.30)
+      it 'rounds to configured precision' do
+        price = Price.new(99.99, amount_precision: 3).discount_percent(0.333)
+        expect(price.fixed_discount).to eq(33.297)
       end
     end
 
-    describe '#percent' do
+    describe '#percent_discount' do
       context 'with fixed discount' do
         it 'calculates the percentage' do
-          price = Price.new(100.0).discount(25.0)
-          expect(price.percent).to eq(0.25)
+          price = Price.new(100.0).discount_fixed(25.0)
+          expect(price.percent_discount).to eq(0.25)
         end
 
         it 'calculates 50% discount' do
-          price = Price.new(100.0).discount(50.0)
-          expect(price.percent).to eq(0.5)
+          price = Price.new(100.0).discount_fixed(50.0)
+          expect(price.percent_discount).to eq(0.5)
         end
 
         it 'calculates 20% discount' do
-          price = Price.new(50.0).discount(10.0)
-          expect(price.percent).to eq(0.2)
+          price = Price.new(50.0).discount_fixed(10.0)
+          expect(price.percent_discount).to eq(0.2)
         end
 
-        it 'rounds to 4 decimal places' do
-          price = Price.new(99.99).discount(33.33)
-          expect(price.percent).to eq(0.3333)
+        it 'rounds to configured precision' do
+          price = Price.new(99.99, percent_precision: 6).discount_fixed(33.33)
+          expect(price.percent_discount).to eq(0.333333)
         end
       end
 
       context 'with percentage discount' do
         it 'returns the applied percentage' do
           price = Price.new(100.0).discount_percent(0.25)
-          expect(price.percent).to eq(0.25)
+          expect(price.percent_discount).to eq(0.25)
         end
       end
 
       context 'without discount' do
         it 'returns 0.0' do
           price = Price.new(49.99)
-          expect(price.percent).to eq(0.0)
+          expect(price.percent_discount).to eq(0.0)
         end
       end
 
       context 'with zero original price' do
         it 'returns 0.0 to avoid division by zero' do
-          price = Price.new(0).discount(0)
-          expect(price.percent).to eq(0.0)
+          price = Price.new(0).discount_fixed(0)
+          expect(price.percent_discount).to eq(0.0)
         end
-      end
-    end
-
-    describe '#savings' do
-      it 'returns the same as discount_amount' do
-        price = Price.new(49.99).discount(20.00)
-        expect(price.savings).to eq(price.discount_amount)
-        expect(price.savings).to eq(20.00)
-      end
-
-      it 'returns 0 for non-discounted price' do
-        price = Price.new(49.99)
-        expect(price.savings).to eq(0.0)
       end
     end
 
     describe '#discounted?' do
       it 'returns true when discount is applied' do
-        price = Price.new(49.99).discount(20.00)
+        price = Price.new(49.99).discount_fixed(20.00)
         expect(price.discounted?).to be true
       end
 
@@ -192,14 +284,14 @@ module Superfeature
       end
 
       it 'returns true even with zero discount' do
-        price = Price.new(100.0).discount(0)
+        price = Price.new(100.0).discount_fixed(0)
         expect(price.discounted?).to be true
       end
     end
 
     describe '#full_price' do
       it 'returns the original amount when discounted' do
-        price = Price.new(49.99).discount(20.00)
+        price = Price.new(49.99).discount_fixed(20.00)
         expect(price.full_price).to eq(49.99)
       end
 
@@ -214,6 +306,28 @@ module Superfeature
       end
     end
 
+    describe '#to_formatted_s' do
+      it 'formats with default precision' do
+        price = Price.new(49.99)
+        expect(price.to_formatted_s).to eq("49.99")
+      end
+
+      it 'formats with custom precision' do
+        price = Price.new(49.999, amount_precision: 3)
+        expect(price.to_formatted_s).to eq("49.999")
+      end
+
+      it 'pads zeros to match precision' do
+        price = Price.new(50)
+        expect(price.to_formatted_s).to eq("50.00")
+      end
+
+      it 'formats discounted price' do
+        price = Price.new(100.0).discount_fixed(20.0)
+        expect(price.to_formatted_s).to eq("80.00")
+      end
+    end
+
     describe '#to_f' do
       it 'returns the amount as a float' do
         price = Price.new(49.99)
@@ -222,7 +336,7 @@ module Superfeature
       end
 
       it 'returns discounted amount' do
-        price = Price.new(49.99).discount(20.00)
+        price = Price.new(49.99).discount_fixed(20.00)
         expect(price.to_f).to eq(29.99)
       end
     end
@@ -234,61 +348,77 @@ module Superfeature
       end
 
       it 'returns discounted amount' do
-        price = Price.new(49.99).discount(20.00)
+        price = Price.new(49.99).discount_fixed(20.00)
         expect(price.to_s).to eq("29.99")
       end
     end
 
-    describe 'chaining examples' do
+    describe 'chaining discounts' do
       it 'supports the main use case' do
-        price = Price.new(49.99).discount(20.00)
-        
+        price = Price.new(49.99).discount_fixed(20.00)
+
         expect(price.amount).to eq(29.99)
         expect(price.original.amount).to eq(49.99)
-        expect(price.discount_amount).to eq(20.00)
+        expect(price.fixed_discount).to eq(20.00)
       end
 
       it 'supports percentage discount chaining' do
         price = Price.new(100.0).discount_percent(0.25)
-        
+
         expect(price.amount).to eq(75.0)
         expect(price.original.amount).to eq(100.0)
-        expect(price.percent).to eq(0.25)
+        expect(price.percent_discount).to eq(0.25)
       end
 
       it 'allows multiple discounts' do
         price = Price.new(100.0)
-          .discount(10.0)
-          .discount(5.0)
-        
+          .discount_fixed(10.0)
+          .discount_fixed(5.0)
+
         # First discount: 100 - 10 = 90
         # Second discount: 90 - 5 = 85
         expect(price.amount).to eq(85.0)
-        # Original should be the first price in the chain
         expect(price.original.amount).to eq(90.0)
         expect(price.original.original.amount).to eq(100.0)
       end
+
+      it 'allows mixing discount types' do
+        price = Price.new(100.0)
+          .discount_percent(0.10)
+          .discount_fixed(5.0)
+
+        # First: 100 - 10% = 90
+        # Second: 90 - 5 = 85
+        expect(price.amount).to eq(85.0)
+      end
+
+      it 'preserves precision through chain' do
+        price = Price.new(100.0, amount_precision: 3)
+          .discount_fixed(10.0)
+          .discount_fixed(5.0)
+
+        expect(price.amount_precision).to eq(3)
+        expect(price.original.amount_precision).to eq(3)
+      end
     end
 
-    describe 'rounding precision' do
-      it 'has configurable amount precision constant' do
-        expect(Price::AMOUNT_PRECISION).to eq(2)
+    describe 'precision configuration' do
+      it 'has configurable default amount precision constant' do
+        expect(Price::DEFAULT_AMOUNT_PRECISION).to eq(2)
       end
 
-      it 'has configurable percent precision constant' do
-        expect(Price::PERCENT_PRECISION).to eq(4)
+      it 'has configurable default percent precision constant' do
+        expect(Price::DEFAULT_PERCENT_PRECISION).to eq(4)
       end
 
-      it 'rounds amounts to AMOUNT_PRECISION decimal places' do
-        price = Price.new(100.0).discount_percent(0.333)
-        # 100 * 0.333 = 33.3, so 100 - 33.3 = 66.7 rounded to 2 decimals = 66.70
-        expect(price.amount).to eq(66.7)
+      it 'uses custom amount precision for rounding' do
+        price = Price.new(100.0, amount_precision: 3).discount_percent(0.3333)
+        expect(price.amount).to eq(66.67)
       end
 
-      it 'rounds percentages to PERCENT_PRECISION decimal places' do
-        price = Price.new(99.99).discount(33.33)
-        # (33.33 / 99.99) = 0.333333... rounded to 4 decimals = 0.3333
-        expect(price.percent).to eq(0.3333)
+      it 'uses custom percent precision for rounding' do
+        price = Price.new(99.99, percent_precision: 2).discount_fixed(33.33)
+        expect(price.percent_discount).to eq(0.33)
       end
     end
 

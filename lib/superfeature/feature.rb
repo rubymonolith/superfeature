@@ -1,8 +1,12 @@
+require "forwardable"
+
 module Superfeature
   class Feature
+    extend Forwardable
+
     attr_reader :limit
-    delegate :enabled?, :disabled?, to: :limit
-    delegate :quantity, :maximum, :remaining, :exceeded?, to: :limit, allow_nil: true
+    def_delegators :limit, :enabled?, :disabled?
+    def_delegators :limit, :quantity, :maximum, :remaining, :exceeded?
 
     def initialize(limit: Limit::Base.new)
       @limit = limit

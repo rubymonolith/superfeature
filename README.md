@@ -319,6 +319,52 @@ def next = plan Enterprise
 def previous = plan Paid
 ```
 
+## Pricing with discounts
+
+The `Price` class helps you work with prices and discounts in views:
+
+```ruby
+# Apply discounts
+price = Superfeature::Price.new(100.00)
+price.discount_fixed(20)      # => $80.00 (fixed $20 off)
+price.discount_percent(0.25)  # => $75.00 (25% off)
+price.discount("25%")         # => $75.00 (parses string)
+price.discount("$20")         # => $80.00 (parses string)
+price.discount(20)            # => $80.00 (numeric = dollars)
+
+# Chain discounts
+price = Superfeature::Price.new(100.00)
+  .discount_percent(0.10)  # 10% off = $90
+  .discount_fixed(5.0)     # $5 off = $85
+
+# Read discount info
+price.amount           # => 85.0
+price.original.amount  # => 90.0 (previous price in chain)
+price.fixed_discount   # => 5.0 (dollars saved from last discount)
+price.percent_discount # => 0.0556 (percent saved from last discount)
+price.discounted?      # => true
+```
+
+### Displaying discounts in views
+
+```erb
+<% if price.discounted? %>
+  <span class="original-price line-through">$<%= price.original.to_formatted_s %></span>
+  <span class="sale-price">$<%= price.to_formatted_s %></span>
+  <span class="savings"><%= (price.percent_discount * 100).to_i %>% off!</span>
+<% else %>
+  <span class="price">$<%= price.to_formatted_s %></span>
+<% end %>
+```
+
+### Custom precision
+
+```ruby
+# Configure precision for currency and percentages
+price = Superfeature::Price.new(99.999, amount_precision: 3, percent_precision: 6)
+price.to_formatted_s  # => "99.999"
+```
+
 ## Comparable libraries
 
 There's a few pretty great feature flag libraries that are worth mentioning so you can better evaluate what's right for you.

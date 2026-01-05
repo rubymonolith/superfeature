@@ -1,5 +1,5 @@
 require "superfeature/version"
-require "superfeature/engine"
+require "superfeature/engine" if defined?(Rails)
 require "superfeature/limit"
 require "superfeature/feature"
 require "superfeature/plan"
