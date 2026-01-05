@@ -12,14 +12,13 @@ module Superfeature
       @limit = limit
     end
 
-    def enable
-      @limit = Limit::Boolean.new(enabled: true)
+    def enable(value = true)
+      @limit = Limit::Boolean.new(enabled: value)
       self
     end
 
-    def disable
-      @limit = Limit::Boolean.new(enabled: false)
-      self
+    def disable(value = true)
+      enable(!value)
     end
 
     def boolean?

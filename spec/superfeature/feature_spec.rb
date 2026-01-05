@@ -19,6 +19,40 @@ RSpec.describe Superfeature::Feature do
     end
   end
 
+  describe "#enable" do
+    it "enables the feature by default" do
+      feature = described_class.new.enable
+      expect(feature).to be_enabled
+    end
+
+    it "enables the feature with true" do
+      feature = described_class.new.enable(true)
+      expect(feature).to be_enabled
+    end
+
+    it "disables the feature with false" do
+      feature = described_class.new.enable(false)
+      expect(feature).to be_disabled
+    end
+  end
+
+  describe "#disable" do
+    it "disables the feature by default" do
+      feature = described_class.new.disable
+      expect(feature).to be_disabled
+    end
+
+    it "disables the feature with true" do
+      feature = described_class.new.disable(true)
+      expect(feature).to be_disabled
+    end
+
+    it "enables the feature with false" do
+      feature = described_class.new.disable(false)
+      expect(feature).to be_enabled
+    end
+  end
+
   describe "#boolean?" do
     it { is_expected.to be_boolean }
   end

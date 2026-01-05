@@ -301,6 +301,10 @@ module Plans
 
     # Override features from Base to enable them
     # def priority_support = super.enable
+    #
+    # Conditionally enable/disable based on a boolean:
+    # def dark_mode = super.enable(user.premium?)
+    # def legacy_feature = super.disable(user.migrated?)
 
     # Link to adjacent plans for navigation
     # def next = plan NextPlan
