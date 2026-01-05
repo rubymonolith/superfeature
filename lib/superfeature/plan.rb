@@ -39,8 +39,8 @@ module Superfeature
       Feature.new(*, **, &)
     end
 
-    def enable(*, **)
-      feature(*, **, limit: Limit::Boolean.new(enabled: true))
+    def enable(flag = true, *, **)
+      feature(*, **, limit: Limit::Boolean.new(enabled: flag))
     end
 
     def disable(*, **)
