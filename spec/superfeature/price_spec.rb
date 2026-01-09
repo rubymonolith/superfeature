@@ -486,5 +486,113 @@ module Superfeature
         expect(price.amount).to eq(84.5)
       end
     end
+
+    describe '#discount_source' do
+      it 'returns nil when no discount applied' do
+        price = Price.new(100.0)
+        expect(price.discount_source).to be_nil
+      end
+
+      it 'returns the string passed to discount' do
+        price = Price.new(100.0).discount("25%")
+        expect(price.discount_source).to eq("25%")
+      end
+
+      it 'returns the numeric value passed to discount' do
+        price = Price.new(100.0).discount(20)
+        expect(price.discount_source).to eq(20)
+      end
+
+      it 'returns the Discount object passed to discount' do
+        discount = Discount::Percent.new(25)
+        price = Price.new(100.0).discount(discount)
+        expect(price.discount_source).to eq(discount)
+      end
+
+      it 'returns custom object passed to discount' do
+        deal = Class.new do
+          attr_reader :name
+
+          def initialize(name, percent)
+            @name = name
+            @percent = percent
+          end
+
+          def to_discount
+            Superfeature::Discount::Percent.new(@percent)
+          end
+        end.new("Launch Special", 25)
+
+        price = Price.new(100.0).discount(deal)
+        expect(price.discount_source).to eq(deal)
+        expect(price.discount_source.name).to eq("Launch Special")
+      end
+
+      it 'tracks discount_source through chains' do
+        price = Price.new(100.0)
+          .discount("10%")
+          .discount("$5")
+
+        expect(price.discount_source).to eq("$5")
+        expect(price.original.discount_source).to eq("10%")
+      end
+    end
+
+    describe 'discount with Discount objects' do
+      it 'accepts Discount::Fixed directly' do
+        price = Price.new(100.0).discount(Discount::Fixed.new(20))
+        expect(price.amount).to eq(80.0)
+      end
+
+      it 'accepts Discount::Percent directly' do
+        price = Price.new(100.0).discount(Discount::Percent.new(25))
+        expect(price.amount).to eq(75.0)
+      end
+
+      it 'accepts Discount::Bundle directly' do
+        bundle = Discount::Bundle.new(
+          Discount::Fixed.new(10),
+          Discount::Percent.new(20)
+        )
+        price = Price.new(100.0).discount(bundle)
+        # 100 - 10 = 90, then 90 * 0.8 = 72
+        expect(price.amount).to eq(72.0)
+      end
+    end
+
+    describe 'to_discount protocol' do
+      it 'accepts any object responding to to_discount' do
+        custom_discount = Class.new do
+          def to_discount
+            Superfeature::Discount::Percent.new(50)
+          end
+        end.new
+
+        price = Price.new(100.0).discount(custom_discount)
+        expect(price.amount).to eq(50.0)
+      end
+
+      it 'allows rich domain objects as discount sources' do
+        promotion = Class.new do
+          attr_reader :name, :percent_off
+
+          def initialize(name:, percent_off:)
+            @name = name
+            @percent_off = percent_off
+          end
+
+          def to_discount
+            Superfeature::Discount::Percent.new(@percent_off)
+          end
+        end.new(name: "Summer Sale", percent_off: 30)
+
+        price = Price.new(100.0).discount(promotion)
+
+        expect(price.amount).to eq(70.0)
+        expect(price.discount_source).to eq(promotion)
+        expect(price.discount_source.name).to eq("Summer Sale")
+        expect(price.discount_source.percent_off).to eq(30)
+      end
+    end
   end
 end

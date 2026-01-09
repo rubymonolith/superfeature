@@ -370,6 +370,56 @@ price = Superfeature::Price.new(99.999, amount_precision: 3, percent_precision: 
 price.to_formatted_s  # => "99.999"
 ```
 
+### Discount objects
+
+For more control, use typed Discount objects directly:
+
+```ruby
+# Fixed dollar discount
+Superfeature::Discount::Fixed(20)     # $20 off
+
+# Percentage discount
+Superfeature::Discount::Percent(25)   # 25% off
+Superfeature::Discount::Percent(10.5) # 10.5% off
+
+# Bundle multiple discounts (note: splat args, not array)
+Superfeature::Discount::Bundle(
+  Superfeature::Discount::Fixed(5),
+  Superfeature::Discount::Percent(20)
+)
+```
+
+Or with `include Superfeature`:
+
+```ruby
+include Superfeature
+
+Price(100).discount(Percent(25))
+Price(100).discount(Fixed(20))
+Price(100).discount(Bundle(Fixed(5), Percent(20)))
+```
+
+### Custom discount sources with `to_discount`
+
+Any object can be passed to `Price#discount` if it implements `to_discount`:
+
+```ruby
+class Promotion < ApplicationRecord
+  def to_discount
+    Superfeature::Discount::Percent.new(percent_off)
+  end
+end
+
+promo = Promotion.find(1)
+price = Superfeature::Price.new(100).discount(promo)
+
+price.amount          # => discounted amount
+price.discount_source # => the Promotion instance
+price.discount_source.name # => access promotion metadata
+```
+
+This allows rich domain objects (promotions, deals, coupons) to be used directly with Price while preserving access to their metadata via `discount_source`.
+
 ## Comparable libraries
 
 There's a few pretty great feature flag libraries that are worth mentioning so you can better evaluate what's right for you.

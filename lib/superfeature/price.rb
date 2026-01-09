@@ -11,38 +11,36 @@ module Superfeature
     DEFAULT_AMOUNT_PRECISION = 2
     DEFAULT_PERCENT_PRECISION = 4
 
-    attr_reader :amount, :original, :amount_precision, :percent_precision
+    attr_reader :amount, :original, :discount_source, :amount_precision, :percent_precision
 
-    def initialize(amount, original: nil, amount_precision: DEFAULT_AMOUNT_PRECISION, percent_precision: DEFAULT_PERCENT_PRECISION)
+    def initialize(amount, original: nil, discount_source: nil, amount_precision: DEFAULT_AMOUNT_PRECISION, percent_precision: DEFAULT_PERCENT_PRECISION)
       @amount = amount.to_f
       @original = original
+      @discount_source = discount_source
       @amount_precision = amount_precision
       @percent_precision = percent_precision
     end
 
-    # Apply a discount by parsing the input:
-    # - "25%" → 25% off
-    # - "$20" → $20 off
-    # - 20 → $20 off (numeric = always dollars)
-    def discount(value)
-      case value
-      # Matches: "25%", "10.5%", "100 %"
-      when /\A(\d+(?:\.\d+)?)\s*%\z/
-        discount_percent($1.to_f / 100)
-      # Matches: "$20", "$ 20", "20", "19.99", "$19.99"
-      when /\A\$?\s*(\d+(?:\.\d+)?)\z/
-        discount_fixed($1.to_f)
-      when Numeric
-        discount_fixed(value)
-      else
-        raise ArgumentError, "Invalid discount format: #{value.inspect}"
-      end
+    # Apply a discount from various sources:
+    # - String: "25%" → 25% off, "$20" → $20 off
+    # - Numeric: 20 → $20 off
+    # - Discount object: Discount::Percent.new(25) → 25% off
+    # - Any object responding to to_discount
+    def discount(source)
+      discount_obj = coerce_discount(source)
+      new_amount = [discount_obj.apply(@amount), 0].max.round(@amount_precision)
+
+      Price.new(new_amount,
+        original: self,
+        discount_source: source,
+        amount_precision: @amount_precision,
+        percent_precision: @percent_precision
+      )
     end
 
     # Apply a fixed dollar discount
     def discount_fixed(amount)
-      new_amount = ([@amount - amount.to_f, 0].max).round(@amount_precision)
-      Price.new(new_amount, original: self, amount_precision: @amount_precision, percent_precision: @percent_precision)
+      discount(Discount::Fixed.new(amount.to_f))
     end
 
     # Set the price to a specific amount (calculates discount from current amount)
@@ -53,9 +51,7 @@ module Superfeature
 
     # Apply a percentage discount (decimal, e.g., 0.25 for 25%)
     def discount_percent(percent)
-      discount_amount = @amount * percent.to_f
-      new_amount = (@amount - discount_amount).round(@amount_precision)
-      Price.new(new_amount, original: self, amount_precision: @amount_precision, percent_precision: @percent_precision)
+      discount(Discount::Percent.new(percent.to_f * 100))
     end
 
     # Dollars saved from original price
@@ -97,6 +93,27 @@ module Superfeature
         "#<Price #{to_formatted_s} (was #{@original.to_formatted_s}, #{(percent_discount * 100).round(1)}% off)>"
       else
         "#<Price #{to_formatted_s}>"
+      end
+    end
+
+    private
+
+    def coerce_discount(source)
+      case source
+      when String then parse_discount_string(source)
+      when Numeric then Discount::Fixed.new(source)
+      else source.to_discount
+      end
+    end
+
+    def parse_discount_string(str)
+      case str
+      when /\A(\d+(?:\.\d+)?)\s*%\z/
+        Discount::Percent.new($1.to_f)
+      when /\A\$?\s*(\d+(?:\.\d+)?)\z/
+        Discount::Fixed.new($1.to_f)
+      else
+        raise ArgumentError, "Invalid discount format: #{str.inspect}"
       end
     end
   end
