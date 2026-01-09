@@ -26,7 +26,10 @@ module Superfeature
     # - Numeric: 20 → $20 off
     # - Discount object: Discount::Percent.new(25) → 25% off
     # - Any object responding to to_discount
+    # - nil: no discount, returns self
     def discount(source)
+      return self if source.nil?
+      
       discount_obj = coerce_discount(source)
       new_amount = [discount_obj.apply(@amount), 0].max.round(@amount_precision)
 

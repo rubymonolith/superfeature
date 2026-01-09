@@ -112,6 +112,23 @@ module Superfeature
         end
       end
 
+      context 'with nil' do
+        it 'returns the price unchanged' do
+          price = Price.new(100.0).discount(nil)
+          expect(price.amount).to eq(100.0)
+        end
+
+        it 'does not mark the price as discounted' do
+          price = Price.new(100.0).discount(nil)
+          expect(price.discounted?).to be false
+        end
+
+        it 'has no discount_source' do
+          price = Price.new(100.0).discount(nil)
+          expect(price.discount_source).to be_nil
+        end
+      end
+
       context 'with invalid input' do
         it 'raises ArgumentError for invalid format' do
           expect { Price.new(100.0).discount("invalid") }.to raise_error(ArgumentError)
