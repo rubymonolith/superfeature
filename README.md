@@ -32,6 +32,364 @@ $ rails generate superfeature:install
 
 Restart your server and it's off to the races!
 
+## Quick Start
+
+### Plans
+
+A plan is a Ruby class that defines what features are available:
+
+```ruby
+module Plans
+  class Free < Superfeature::Plan
+    def name = "Free"
+    def description = "Get started for free"
+  end
+end
+```
+
+### Features
+
+Features are methods that return enabled/disabled states:
+
+```ruby
+module Plans
+  class Free < Superfeature::Plan
+    feature def priority_support = disable("Priority support")
+    feature def api_access = enable("API access")
+  end
+end
+```
+
+Check features in your app:
+
+```ruby
+plan = Plans::Free.new(current_user)
+plan.priority_support.enabled?  # => false
+plan.api_access.enabled?        # => true
+```
+
+### Limits
+
+Features can also be limits with quantities:
+
+```ruby
+module Plans
+  class Free < Superfeature::Plan
+    feature def projects = hard_limit("Projects", quantity: user.projects_count, maximum: 5)
+    feature def storage_gb = soft_limit("Storage", quantity: user.storage_gb, soft_limit: 1, hard_limit: 2)
+  end
+end
+```
+
+Check limits:
+
+```ruby
+plan.projects.exceeded?   # => true if over 5
+plan.projects.remaining   # => how many left
+plan.storage_gb.warning?  # => true if between soft and hard limit
+```
+
+### Plan Inheritance
+
+Plans inherit from each other. Override features to change them:
+
+```ruby
+module Plans
+  class Pro < Free
+    def name = "Pro"
+    def description = "For professionals"
+
+    # Enable what was disabled in Free
+    def priority_support = super.enable
+
+    # Increase limits
+    def projects = hard_limit("Projects", quantity: user.projects_count, maximum: 100)
+  end
+end
+```
+
+### Navigation Between Plans
+
+Link plans together with `next` and `previous`:
+
+```ruby
+module Plans
+  class Free < Superfeature::Plan
+    def next = plan Pro
+  end
+
+  class Pro < Free
+    def previous = plan Free
+    def next = plan Enterprise
+  end
+
+  class Enterprise < Pro
+    def previous = plan Pro
+  end
+end
+```
+
+## Pricing
+
+The `Price` class handles monetary values with precision using `BigDecimal` internally:
+
+```ruby
+price = Superfeature::Price.new(49.99)
+price.amount  # => BigDecimal("49.99")
+price.to_f    # => 49.99
+price.to_i    # => 49
+```
+
+### Adding Price to Plans
+
+```ruby
+module Plans
+  class Free < Superfeature::Plan
+    def price = Price(0)
+  end
+
+  class Pro < Free
+    def price = Price(29)
+  end
+
+  class Enterprise < Pro
+    def price = Price(99)
+  end
+end
+```
+
+### Formatting Prices
+
+```ruby
+price = Price(29)
+price.to_formatted_s            # => "29.00"
+price.to_formatted_s(decimals: 0)  # => "29"
+```
+
+## Discounts
+
+Apply discounts to prices:
+
+```ruby
+price = Price(100)
+
+# Fixed dollar amount off
+price.discount_fixed(20).amount  # => 80.0
+
+# Percentage off (0.25 = 25%)
+price.discount_percent(0.25).amount  # => 75.0
+
+# Set a target price directly
+price.discount_to(79).amount  # => 79.0
+```
+
+### Discount Strings
+
+Parse discount strings naturally:
+
+```ruby
+price = Price(100)
+price.apply_discount("20%").amount   # => 80.0
+price.apply_discount("$15").amount   # => 85.0
+price.apply_discount(10).amount      # => 90.0 (numeric = dollars off)
+```
+
+### Reading Discount Info
+
+After applying a discount, access the details:
+
+```ruby
+price = Price(100).apply_discount("25%")
+
+price.amount                  # => 75.0
+price.discounted?             # => true
+price.original.amount         # => 100.0
+
+price.discount.fixed          # => 25.0 (dollars saved)
+price.discount.percent        # => 25.0 (percent saved)
+price.discount.to_fixed_s     # => "25.00"
+price.discount.to_percent_s   # => "25%"
+price.discount.to_formatted_s # => "25%" (natural format)
+```
+
+### Discount Objects
+
+For reusable discounts, create `Discount` objects:
+
+```ruby
+include Superfeature
+
+summer_sale = Discount::Percent.new(20)
+loyalty = Discount::Fixed.new(10)
+
+Price(100).apply_discount(summer_sale).amount  # => 80.0
+Price(100).apply_discount(loyalty).amount      # => 90.0
+```
+
+Bundle multiple discounts:
+
+```ruby
+bundle = Discount::Bundle.new(
+  Discount::Fixed.new(10),    # $10 off first
+  Discount::Percent.new(20)   # then 20% off
+)
+
+Price(100).apply_discount(bundle).amount  # => 72.0 (100 - 10 = 90, then 90 * 0.8 = 72)
+```
+
+### Custom Discount Sources
+
+Any object can be a discount if it implements `to_discount`:
+
+```ruby
+class Coupon < ApplicationRecord
+  def to_discount
+    Superfeature::Discount::Percent.new(percent_off)
+  end
+end
+
+coupon = Coupon.find_by(code: "SAVE20")
+price = Price(100).apply_discount(coupon)
+price.amount  # => 80.0
+```
+
+## Building a Pricing Table
+
+Here's how to put it all together for a pricing page.
+
+### Define Your Plans
+
+```ruby
+module Plans
+  class Base < Superfeature::Plan
+    attr_reader :user
+
+    def initialize(user)
+      @user = user
+    end
+
+    feature def projects = hard_limit("Projects", quantity: user.projects_count, maximum: 3)
+    feature def api_access = disable("API access")
+    feature def priority_support = disable("Priority support")
+  end
+
+  class Free < Base
+    def name = "Free"
+    def price = Price(0)
+    def next = plan Pro
+  end
+
+  class Pro < Free
+    def name = "Pro"
+    def price = Price(29)
+
+    def projects = hard_limit("Projects", quantity: user.projects_count, maximum: 100)
+    def api_access = super.enable
+
+    def previous = plan Free
+    def next = plan Enterprise
+  end
+
+  class Enterprise < Pro
+    def name = "Enterprise"
+    def price = Price(99)
+
+    def projects = unlimited("Projects", quantity: user.projects_count)
+    def api_access = super.enable
+    def priority_support = super.enable
+
+    def previous = plan Pro
+  end
+end
+```
+
+### Add a Promotion
+
+```ruby
+class Promotion
+  attr_reader :name, :percent_off
+
+  def initialize(name:, percent_off:)
+    @name = name
+    @percent_off = percent_off
+  end
+
+  def to_discount
+    Superfeature::Discount::Percent.new(@percent_off)
+  end
+end
+```
+
+### Controller
+
+```ruby
+class PricingController < ApplicationController
+  def index
+    @plans = Superfeature::Plan::Collection.new(Plans::Free.new(User.new)).to_a
+    @promo = Promotion.new(name: "Launch Special", percent_off: 20)
+  end
+end
+```
+
+### View
+
+```erb
+<h1>Pricing</h1>
+
+<% if @promo %>
+  <div class="promo-banner">
+    <%= @promo.name %>: Save <%= @promo.percent_off %>% on all plans!
+  </div>
+<% end %>
+
+<div class="pricing-grid">
+  <% @plans.each do |plan| %>
+    <div class="plan-card">
+      <h2><%= plan.name %></h2>
+
+      <% price = plan.price %>
+      <% if @promo && price.positive? %>
+        <% discounted = price.apply_discount(@promo) %>
+        <p class="price">
+          <span class="original">$<%= price.to_formatted_s(decimals: 0) %></span>
+          <span class="sale">$<%= discounted.to_formatted_s(decimals: 0) %></span>
+          <span class="savings">Save <%= discounted.discount.to_percent_s %></span>
+        </p>
+      <% else %>
+        <p class="price">
+          <% if price.free? %>
+            Free
+          <% else %>
+            $<%= price.to_formatted_s(decimals: 0) %>/mo
+          <% end %>
+        </p>
+      <% end %>
+
+      <ul class="features">
+        <% plan.features.each do |feature| %>
+          <li>
+            <% if feature.enabled? %>
+              <span class="check">✓</span>
+            <% else %>
+              <span class="x">✗</span>
+            <% end %>
+            <%= feature.name %>
+          </li>
+        <% end %>
+      </ul>
+
+      <%= link_to "Choose #{plan.name}", subscribe_path(plan: plan.key), class: "button" %>
+    </div>
+  <% end %>
+</div>
+```
+
+This renders a pricing table with:
+- Original and discounted prices when a promotion is active
+- Feature list with checkmarks
+- "Free" label for zero-price plans
+- Savings percentage from the discount
+
 ## Generated Files
 
 The generator creates the following structure:
@@ -215,35 +573,6 @@ end
 collection.to_a  # All plans as an array
 ```
 
-### Building a pricing page
-
-```ruby
-# In controller
-def index
-  @plans = Superfeature::Plan::Collection.new(Plans::Free.new(User.new)).to_a
-end
-
-# In view
-<% @plans.each do |plan| %>
-  <div class="plan">
-    <h2><%= plan.name %></h2>
-    <p class="price">$<%= plan.price %>/month</p>
-    <p><%= plan.description %></p>
-
-    <ul>
-      <% plan.features.each do |feature| %>
-        <li>
-          <%= feature.name %>:
-          <%= feature.enabled? ? "✓" : "—" %>
-        </li>
-      <% end %>
-    </ul>
-
-    <%= link_to "Select", plan_path(plan) %>
-  </div>
-<% end %>
-```
-
 ### Checking limits
 
 ```ruby
@@ -323,125 +652,51 @@ def next = plan Enterprise
 def previous = plan Paid
 ```
 
-## Pricing with discounts
+## Price Reference
 
-The `Price` class helps you work with prices and discounts in views:
-
-```ruby
-# Apply discounts
-price = Superfeature::Price.new(100.00)
-price.apply_discount(20)            # => $80.00 (numeric = dollars off)
-price.apply_discount("25%")         # => $75.00 (parses string)
-price.apply_discount("$20")         # => $80.00 (parses string)
-price.discount_fixed(20)            # => $80.00 (fixed $20 off)
-price.discount_percent(0.25)        # => $75.00 (25% off)
-price.to(80)                        # => $80.00 (set target price directly)
-
-# Chain discounts
-price = Superfeature::Price.new(100.00)
-  .discount_percent(0.10)  # 10% off = $90
-  .discount_fixed(5.0)     # $5 off = $85
-
-# Read discount info
-price.amount           # => 85.0
-price.original.amount  # => 90.0 (previous price in chain)
-price.fixed_discount   # => 5.0 (dollars saved from last discount)
-price.percent_discount # => 0.0556 (percent saved from last discount)
-price.discounted?      # => true
-```
-
-### Accessing applied discounts
-
-When a discount is applied, `price.discount` returns an `Applied` object with formatting helpers:
+### Creating Prices
 
 ```ruby
-price = Price(100).apply_discount(Percent(20))
-
-price.discount                # => Discount::Applied
-price.discount.percent        # => 20.0 (computed percent saved)
-price.discount.fixed          # => 20.0 (computed dollars saved)
-price.discount.to_percent_s   # => "20%"
-price.discount.to_fixed_s     # => "20.00"
-price.discount.to_formatted_s # => "20%" (natural format from source)
-price.discount.source         # => the original Discount::Percent object
+price = Price(49.99)       # convenience method
+price = Price.new(49.99)   # standard constructor
 ```
 
-This makes it easy to build UI messages:
+### Conversions
 
 ```ruby
-"Save #{price.discount.to_percent_s}, that's $#{price.discount.to_fixed_s}!"
-# => "Save 20%, that's $20.00!"
+price.to_f    # => 49.99 (Float)
+price.to_i    # => 49 (Integer)
+price.to_d    # => BigDecimal("49.99")
+price.to_s    # => "49.99"
+price.to_formatted_s(decimals: 0)  # => "50"
 ```
 
-### Displaying discounts in views
-
-```erb
-<% if price.discounted? %>
-  <span class="original-price line-through">$<%= price.original.to_formatted_s %></span>
-  <span class="sale-price">$<%= price.to_formatted_s %></span>
-  <span class="savings"><%= price.discount.to_percent_s %> off!</span>
-<% else %>
-  <span class="price">$<%= price.to_formatted_s %></span>
-<% end %>
-```
-
-### Custom precision
+### Comparisons
 
 ```ruby
-# Configure precision for currency and percentages
-price = Superfeature::Price.new(99.999, amount_precision: 3, percent_precision: 6)
-price.to_formatted_s  # => "99.999"
+Price(100) > Price(50)   # => true
+Price(100) == 100        # => true
+Price(100) < 200         # => true
 ```
 
-### Discount objects
-
-For more control, use typed Discount objects directly:
+### Math
 
 ```ruby
-# Fixed dollar discount
-Superfeature::Discount::Fixed(20)     # $20 off
-
-# Percentage discount
-Superfeature::Discount::Percent(25)   # 25% off
-Superfeature::Discount::Percent(10.5) # 10.5% off
-
-# Bundle multiple discounts (note: splat args, not array)
-Superfeature::Discount::Bundle(
-  Superfeature::Discount::Fixed(5),
-  Superfeature::Discount::Percent(20)
-)
+Price(100) + 20          # => Price(120)
+Price(100) - 20          # => Price(80)
+Price(100) * 2           # => Price(200)
+Price(100) / 4           # => Price(25)
+10 + Price(5)            # => Price(15)
 ```
 
-Or with `include Superfeature`:
+### Queries
 
 ```ruby
-include Superfeature
-
-Price(100).apply_discount(Percent(25))
-Price(100).apply_discount(Fixed(20))
-Price(100).apply_discount(Bundle(Fixed(5), Percent(20)))
+Price(0).zero?      # => true
+Price(0).free?      # => true (alias)
+Price(100).positive? # => true
+Price(100).paid?    # => true (alias)
 ```
-
-### Custom discount sources with `to_discount`
-
-Any object can be passed to `Price#apply_discount` if it implements `to_discount`:
-
-```ruby
-class Promotion < ApplicationRecord
-  def to_discount
-    Superfeature::Discount::Percent.new(percent_off)
-  end
-end
-
-promo = Promotion.find(1)
-price = Superfeature::Price.new(100).apply_discount(promo)
-
-price.amount          # => discounted amount
-price.discount_source # => the Promotion instance
-price.discount_source.name # => access promotion metadata
-```
-
-This allows rich domain objects (promotions, deals, coupons) to be used directly with Price while preserving access to their metadata via `discount_source`.
 
 ## Comparable libraries
 
