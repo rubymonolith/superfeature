@@ -1,3 +1,5 @@
+require 'bigdecimal'
+
 module Superfeature
   # Convenience method for creating Price objects.
   # Use Superfeature::Price(100) or after `include Superfeature`, just Price(100)
@@ -10,18 +12,19 @@ module Superfeature
   class Price
     include Comparable
 
-    DEFAULT_AMOUNT_PRECISION = 2
-    DEFAULT_PERCENT_PRECISION = 4
+    attr_reader :original, :range
 
-    attr_reader :amount, :original, :discount_source, :amount_precision, :percent_precision
-
-    def initialize(amount, original: nil, discount_source: nil, discount: nil, amount_precision: DEFAULT_AMOUNT_PRECISION, percent_precision: DEFAULT_PERCENT_PRECISION)
-      @amount = amount.to_f
+    def initialize(amount, original: nil, discount: nil, range: 0.., precision: 2)
+      @precision = precision
+      raw = to_decimal(amount)
+      @amount = range ? raw.clamp(range.begin || -Float::INFINITY, range.end || Float::INFINITY).round(@precision) : raw.round(@precision)
       @original = original
-      @discount_source = discount_source
       @discount = discount
-      @amount_precision = amount_precision
-      @percent_precision = percent_precision
+      @range = range
+    end
+
+    def amount
+      @amount
     end
 
     def discount
@@ -36,50 +39,37 @@ module Superfeature
     # - nil: no discount, returns self
     def apply_discount(source)
       return self if source.nil?
-      
+
       discount_obj = coerce_discount(source)
-      new_amount = [discount_obj.apply(@amount), 0].max.round(@amount_precision)
-      fixed_saved = (@amount - new_amount).round(@amount_precision)
-      percent_saved = @amount.zero? ? 0.0 : (fixed_saved / @amount * 100).round(@percent_precision)
+      new_amount = discount_obj.apply(@amount)
+      fixed_saved = @amount - new_amount
+      percent_saved = @amount.zero? ? BigDecimal("0") : (fixed_saved / @amount * 100)
 
       applied = Discount::Applied.new(discount_obj, fixed: fixed_saved, percent: percent_saved)
 
       Price.new(new_amount,
         original: self,
-        discount_source: source,
         discount: applied,
-        amount_precision: @amount_precision,
-        percent_precision: @percent_precision
+        range: @range,
+        precision: @precision
       )
     end
 
     # Apply a fixed dollar discount
     def discount_fixed(amount)
-      apply_discount(Discount::Fixed.new(amount.to_f))
+      apply_discount(Discount::Fixed.new(to_decimal(amount)))
     end
 
-    # Set the price to a specific amount (calculates discount from current amount)
-    # Price(300).to(200) is equivalent to Price(300).discount_fixed(100)
-    def to(new_amount)
-      discount_fixed([@amount - new_amount.to_f, 0].max)
+    # Set the price to a specific amount
+    # Price(300).discount_to(200) is equivalent to Price(300).discount_fixed(100)
+    def discount_to(new_amount)
+      diff = @amount - to_decimal(new_amount)
+      discount_fixed(diff > 0 ? diff : 0)
     end
 
     # Apply a percentage discount (decimal, e.g., 0.25 for 25%)
     def discount_percent(percent)
-      apply_discount(Discount::Percent.new(percent.to_f * 100))
-    end
-
-    # Dollars saved from original price
-    def fixed_discount
-      return 0.0 unless @original
-      (@original.amount - @amount).round(@amount_precision)
-    end
-
-    # Percent saved as decimal (e.g., 0.25 for 25%)
-    def percent_discount
-      return 0.0 unless @original
-      return 0.0 if @original.amount.zero?
-      ((@original.amount - @amount) / @original.amount).round(@percent_precision)
+      apply_discount(Discount::Percent.new(to_decimal(percent) * 100))
     end
 
     def discounted?
@@ -90,81 +80,90 @@ module Superfeature
       @original ? @original.amount : @amount
     end
 
-    # Format amount as string with configured precision
-    def to_formatted_s
-      "%.#{@amount_precision}f" % @amount
+    def to_formatted_s(decimals: 2)
+      "%.#{decimals}f" % @amount.to_f
     end
 
     def to_f
+      @amount.to_f
+    end
+
+    def to_d
       @amount
     end
 
+    def to_i
+      @amount.to_i
+    end
+
     def to_s
-      @amount.to_s
+      @amount.to_s('F')
     end
 
     def <=>(other)
       case other
       when Price then @amount <=> other.amount
-      when Numeric then @amount <=> other
+      when Numeric then @amount <=> to_decimal(other)
       else nil
       end
     end
 
     def +(other)
-      Price.new(@amount + to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+      Price.new(@amount + to_amount(other), range: @range, precision: @precision)
     end
 
     def -(other)
-      Price.new(@amount - to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+      Price.new(@amount - to_amount(other), range: @range, precision: @precision)
     end
 
     def *(other)
-      Price.new(@amount * to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+      Price.new(@amount * to_amount(other), range: @range, precision: @precision)
     end
 
     def /(other)
-      Price.new(@amount / to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+      Price.new(@amount / to_amount(other), range: @range, precision: @precision)
     end
 
     def -@
-      Price.new(-@amount, amount_precision: @amount_precision, percent_precision: @percent_precision)
+      Price.new(-@amount, range: @range, precision: @precision)
     end
 
     def abs
-      Price.new(@amount.abs, amount_precision: @amount_precision, percent_precision: @percent_precision)
+      Price.new(@amount.abs, range: @range, precision: @precision)
     end
 
     def zero?
       @amount.zero?
     end
+    alias free? zero?
 
     def positive?
       @amount.positive?
     end
+    alias paid? positive?
 
     def negative?
       @amount.negative?
     end
 
-    def round(precision = @amount_precision)
-      Price.new(@amount.round(precision), amount_precision: @amount_precision, percent_precision: @percent_precision)
+    def round(decimals = 2)
+      Price.new(@amount.round(decimals), range: @range, precision: @precision)
     end
 
     def clamp(min, max)
-      Price.new(@amount.clamp(to_amount(min), to_amount(max)), amount_precision: @amount_precision, percent_precision: @percent_precision)
+      Price.new(@amount.clamp(to_amount(min), to_amount(max)), range: @range, precision: @precision)
     end
 
     def coerce(other)
       case other
-      when Numeric then [Price.new(other, amount_precision: @amount_precision, percent_precision: @percent_precision), self]
+      when Numeric then [Price.new(other, range: @range, precision: @precision), self]
       else raise TypeError, "#{other.class} can't be coerced into Price"
       end
     end
 
     def inspect
       if discounted?
-        "#<Price #{to_formatted_s} (was #{@original.to_formatted_s}, #{(percent_discount * 100).round(1)}% off)>"
+        "#<Price #{to_formatted_s} (was #{@original.to_formatted_s}, #{discount.percent.to_f.round(1)}% off)>"
       else
         "#<Price #{to_formatted_s}>"
       end
@@ -172,10 +171,18 @@ module Superfeature
 
     private
 
+    def to_decimal(value)
+      case value
+      when BigDecimal then value
+      when Float then BigDecimal(value, 15)
+      else BigDecimal(value.to_s)
+      end
+    end
+
     def to_amount(other)
       case other
       when Price then other.amount
-      when Numeric then other
+      when Numeric then to_decimal(other)
       else raise ArgumentError, "Cannot convert #{other.class} to amount"
       end
     end
@@ -183,7 +190,7 @@ module Superfeature
     def coerce_discount(source)
       case source
       when String then parse_discount_string(source)
-      when Numeric then Discount::Fixed.new(source)
+      when Numeric then Discount::Fixed.new(to_decimal(source))
       else source.to_discount
       end
     end
@@ -191,9 +198,9 @@ module Superfeature
     def parse_discount_string(str)
       case str
       when /\A(\d+(?:\.\d+)?)\s*%\z/
-        Discount::Percent.new($1.to_f)
+        Discount::Percent.new(BigDecimal($1))
       when /\A\$?\s*(\d+(?:\.\d+)?)\z/
-        Discount::Fixed.new($1.to_f)
+        Discount::Fixed.new(BigDecimal($1))
       else
         raise ArgumentError, "Invalid discount format: #{str.inspect}"
       end

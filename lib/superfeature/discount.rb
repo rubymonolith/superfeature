@@ -1,7 +1,19 @@
+require 'bigdecimal'
+
 module Superfeature
   module Discount
     class Base
       def to_discount = self
+
+      private
+
+      def to_decimal(value)
+        case value
+        when BigDecimal then value
+        when Float then BigDecimal(value, 15)
+        else BigDecimal(value.to_s)
+        end
+      end
     end
 
     class Applied
@@ -15,9 +27,9 @@ module Superfeature
 
       def to_formatted_s = source.to_formatted_s
 
-      def to_fixed_s = "%.2f" % fixed
+      def to_fixed_s(decimals: 2) = "%.#{decimals}f" % fixed.to_f
 
-      def to_percent_s = "#{percent.to_i}%"
+      def to_percent_s(decimals: 0) = decimals.zero? ? "#{percent.to_i}%" : "%.#{decimals}f%%" % percent.to_f
 
       def amount
         source.amount if source.respond_to?(:amount)
@@ -28,12 +40,12 @@ module Superfeature
 
     class None
       def source = nil
-      def fixed = 0.0
-      def percent = 0.0
+      def fixed = BigDecimal("0")
+      def percent = BigDecimal("0")
       def amount = nil
       def to_formatted_s = ""
-      def to_fixed_s = "0.00"
-      def to_percent_s = "0%"
+      def to_fixed_s(decimals: 2) = "%.#{decimals}f" % 0
+      def to_percent_s(decimals: 0) = decimals.zero? ? "0%" : "%.#{decimals}f%%" % 0
       def none? = true
     end
 
@@ -41,24 +53,24 @@ module Superfeature
       attr_reader :amount
 
       def initialize(amount)
-        @amount = amount
+        @amount = to_decimal(amount)
       end
 
-      def apply(price) = price - amount
+      def apply(price) = to_decimal(price) - @amount
 
-      def to_formatted_s = amount.to_i.to_s
+      def to_formatted_s = @amount.to_i.to_s
     end
 
     class Percent < Base
       attr_reader :percent
 
       def initialize(percent)
-        @percent = percent
+        @percent = to_decimal(percent)
       end
 
-      def apply(price) = price * (1 - percent / 100.0)
+      def apply(price) = to_decimal(price) * (1 - @percent / 100)
 
-      def to_formatted_s = "#{percent.to_i}%"
+      def to_formatted_s = "#{@percent.to_i}%"
     end
 
     class Bundle < Base
@@ -69,7 +81,7 @@ module Superfeature
       end
 
       def apply(price)
-        discounts.reduce(price) { |amt, d| d.to_discount.apply(amt) }
+        discounts.reduce(to_decimal(price)) { |amt, d| d.to_discount.apply(amt) }
       end
     end
 
@@ -79,7 +91,7 @@ module Superfeature
 
       def initialize(discount, multiple, direction)
         @discount = discount
-        @multiple = multiple
+        @multiple = to_decimal(multiple)
         @direction = direction
       end
 
@@ -93,14 +105,14 @@ module Superfeature
       private
 
       def charm_round(value)
-        multiple = @multiple.to_f
+        val = to_decimal(value)
         case @direction
         when :up
-          (multiple * (value / multiple).ceil).round(2)
+          (@multiple * (val / @multiple).ceil).round(2)
         when :down
-          (multiple * (value / multiple).floor).round(2)
+          (@multiple * (val / @multiple).floor).round(2)
         when :nearest
-          (multiple * (value / multiple).round).round(2)
+          (@multiple * (val / @multiple).round).round(2)
         end
       end
     end

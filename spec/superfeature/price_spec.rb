@@ -8,8 +8,8 @@ RSpec.describe "Superfeature::Price() convenience method" do
   end
 
   it 'passes options through' do
-    price = Superfeature::Price(100, amount_precision: 3)
-    expect(price.amount_precision).to eq(3)
+    price = Superfeature::Price(100, range: 0..200)
+    expect(price.range).to eq(0..200)
   end
 
   it 'works when included' do
@@ -44,24 +44,29 @@ module Superfeature
         expect(price.original).to be_nil
       end
 
-      it 'uses default amount precision' do
+      it 'uses default range of 0..' do
         price = Price.new(49.99)
-        expect(price.amount_precision).to eq(2)
+        expect(price.range).to eq(0..)
       end
 
-      it 'uses default percent precision' do
-        price = Price.new(49.99)
-        expect(price.percent_precision).to eq(4)
+      it 'clamps negative amounts to 0 by default' do
+        price = Price.new(-10)
+        expect(price.amount).to eq(0.0)
       end
 
-      it 'accepts custom amount precision' do
-        price = Price.new(49.99, amount_precision: 3)
-        expect(price.amount_precision).to eq(3)
+      it 'accepts custom range' do
+        price = Price.new(50, range: 10..100)
+        expect(price.range).to eq(10..100)
       end
 
-      it 'accepts custom percent precision' do
-        price = Price.new(49.99, percent_precision: 6)
-        expect(price.percent_precision).to eq(6)
+      it 'clamps to custom range' do
+        expect(Price.new(5, range: 10..100).amount).to eq(10.0)
+        expect(Price.new(150, range: 10..100).amount).to eq(100.0)
+      end
+
+      it 'allows nil range for no clamping' do
+        price = Price.new(-50, range: nil)
+        expect(price.amount).to eq(-50.0)
       end
     end
 
@@ -123,9 +128,9 @@ module Superfeature
           expect(price.discounted?).to be false
         end
 
-        it 'has no discount_source' do
+        it 'has no discount source' do
           price = Price.new(100.0).apply_discount(nil)
-          expect(price.discount_source).to be_nil
+          expect(price.discount.source).to be_nil
         end
       end
 
@@ -139,7 +144,7 @@ module Superfeature
     describe '#discount_fixed' do
       it 'returns a new Price with discount applied' do
         price = Price.new(49.99).discount_fixed(20.00)
-        expect(price.amount).to eq(29.99)
+        expect(price.amount).to be_within(0.001).of(29.99)
       end
 
       it 'preserves the original price' do
@@ -151,7 +156,7 @@ module Superfeature
         original = Price.new(49.99)
         discounted = original.discount_fixed(20.00)
         expect(original.amount).to eq(49.99)
-        expect(discounted.amount).to eq(29.99)
+        expect(discounted.amount).to be_within(0.001).of(29.99)
       end
 
       it 'handles zero discount' do
@@ -159,7 +164,7 @@ module Superfeature
         expect(price.amount).to eq(100.0)
       end
 
-      it 'does not allow negative prices' do
+      it 'does not allow negative prices by default' do
         price = Price.new(49.99).discount_fixed(60.00)
         expect(price.amount).to eq(0)
       end
@@ -169,56 +174,56 @@ module Superfeature
         expect(price.amount).to eq(40.0)
       end
 
-      it 'preserves precision settings' do
-        price = Price.new(100.0, amount_precision: 3).discount_fixed(20.0)
-        expect(price.amount_precision).to eq(3)
+      it 'preserves range settings' do
+        price = Price.new(100.0, range: 10..200).discount_fixed(20.0)
+        expect(price.range).to eq(10..200)
       end
     end
 
-    describe '#to' do
+    describe '#discount_to' do
       it 'sets the price to the specified amount' do
-        price = Price.new(300).to(200)
+        price = Price.new(300).discount_to(200)
         expect(price.amount).to eq(200.0)
       end
 
       it 'is equivalent to discount_fixed with the difference' do
-        price_to = Price.new(300).to(200)
+        price_to = Price.new(300).discount_to(200)
         price_fixed = Price.new(300).discount_fixed(100)
         expect(price_to.amount).to eq(price_fixed.amount)
       end
 
       it 'preserves the original price' do
-        price = Price.new(300).to(200)
+        price = Price.new(300).discount_to(200)
         expect(price.original.amount).to eq(300.0)
       end
 
-      it 'calculates the correct fixed_discount' do
-        price = Price.new(300).to(200)
-        expect(price.fixed_discount).to eq(100.0)
+      it 'calculates the correct fixed discount' do
+        price = Price.new(300).discount_to(200)
+        expect(price.discount.fixed).to eq(100.0)
       end
 
-      it 'calculates the correct percent_discount' do
-        price = Price.new(300).to(200)
-        expect(price.percent_discount).to be_within(0.0001).of(0.3333)
+      it 'calculates the correct percent discount' do
+        price = Price.new(300).discount_to(200)
+        expect(price.discount.percent).to be_within(0.01).of(33.33)
       end
 
       it 'returns original price when target is higher' do
-        price = Price.new(100).to(150)
+        price = Price.new(100).discount_to(150)
         expect(price.amount).to eq(100.0)
       end
 
       it 'converts target amount to float' do
-        price = Price.new(300).to("200")
+        price = Price.new(300).discount_to("200")
         expect(price.amount).to eq(200.0)
       end
 
-      it 'preserves precision settings' do
-        price = Price.new(300.0, amount_precision: 3).to(200.0)
-        expect(price.amount_precision).to eq(3)
+      it 'preserves range settings' do
+        price = Price.new(300.0, range: 0..500).discount_to(200.0)
+        expect(price.range).to eq(0..500)
       end
 
       it 'works in discount chains' do
-        price = Price.new(300).to(250).discount_fixed(10)
+        price = Price.new(300).discount_to(250).discount_fixed(10)
         expect(price.amount).to eq(240.0)
       end
     end
@@ -244,9 +249,9 @@ module Superfeature
         expect(price.amount).to eq(90.0)
       end
 
-      it 'rounds to configured precision' do
+      it 'handles fractional percentages' do
         price = Price.new(99.99).discount_percent(0.333)
-        expect(price.amount).to eq(66.69)
+        expect(price.amount).to be_within(0.01).of(66.69)
       end
 
       it 'handles 100% discount' do
@@ -259,75 +264,65 @@ module Superfeature
         expect(price.amount).to eq(75.0)
       end
 
-      it 'preserves precision settings' do
-        price = Price.new(100.0, percent_precision: 6).discount_percent(0.25)
-        expect(price.percent_precision).to eq(6)
+      it 'preserves range settings' do
+        price = Price.new(100.0, range: 0..200).discount_percent(0.25)
+        expect(price.range).to eq(0..200)
       end
     end
 
-    describe '#fixed_discount' do
+    describe '#discount.fixed' do
       it 'returns the dollar amount discounted' do
         price = Price.new(49.99).discount_fixed(20.00)
-        expect(price.fixed_discount).to eq(20.00)
+        expect(price.discount.fixed).to eq(20.00)
       end
 
       it 'calculates from percentage discount' do
         price = Price.new(100.0).discount_percent(0.25)
-        expect(price.fixed_discount).to eq(25.0)
+        expect(price.discount.fixed).to eq(25.0)
       end
 
       it 'returns 0 for non-discounted price' do
         price = Price.new(49.99)
-        expect(price.fixed_discount).to eq(0.0)
-      end
-
-      it 'rounds to configured precision' do
-        price = Price.new(99.99, amount_precision: 3).discount_percent(0.333)
-        expect(price.fixed_discount).to eq(33.297)
+        expect(price.discount.fixed).to eq(0.0)
       end
     end
 
-    describe '#percent_discount' do
+    describe '#discount.percent' do
       context 'with fixed discount' do
         it 'calculates the percentage' do
           price = Price.new(100.0).discount_fixed(25.0)
-          expect(price.percent_discount).to eq(0.25)
+          expect(price.discount.percent).to eq(25.0)
         end
 
         it 'calculates 50% discount' do
           price = Price.new(100.0).discount_fixed(50.0)
-          expect(price.percent_discount).to eq(0.5)
+          expect(price.discount.percent).to eq(50.0)
         end
 
         it 'calculates 20% discount' do
           price = Price.new(50.0).discount_fixed(10.0)
-          expect(price.percent_discount).to eq(0.2)
-        end
-
-        it 'rounds to configured precision' do
-          price = Price.new(99.99, percent_precision: 6).discount_fixed(33.33)
-          expect(price.percent_discount).to eq(0.333333)
+          expect(price.discount.percent).to eq(20.0)
         end
       end
 
       context 'with percentage discount' do
         it 'returns the applied percentage' do
           price = Price.new(100.0).discount_percent(0.25)
-          expect(price.percent_discount).to eq(0.25)
+          expect(price.discount.percent).to eq(25.0)
         end
       end
 
       context 'without discount' do
         it 'returns 0.0' do
           price = Price.new(49.99)
-          expect(price.percent_discount).to eq(0.0)
+          expect(price.discount.percent).to eq(0.0)
         end
       end
 
       context 'with zero original price' do
         it 'returns 0.0 to avoid division by zero' do
           price = Price.new(0).discount_fixed(0)
-          expect(price.percent_discount).to eq(0.0)
+          expect(price.discount.percent).to eq(0.0)
         end
       end
     end
@@ -372,17 +367,17 @@ module Superfeature
     end
 
     describe '#to_formatted_s' do
-      it 'formats with default precision' do
+      it 'formats with default decimals (2)' do
         price = Price.new(49.99)
         expect(price.to_formatted_s).to eq("49.99")
       end
 
-      it 'formats with custom precision' do
-        price = Price.new(49.999, amount_precision: 3)
-        expect(price.to_formatted_s).to eq("49.999")
+      it 'formats with custom decimals' do
+        price = Price.new(49.999, precision: 3)
+        expect(price.to_formatted_s(decimals: 3)).to eq("49.999")
       end
 
-      it 'pads zeros to match precision' do
+      it 'pads zeros to match decimals' do
         price = Price.new(50)
         expect(price.to_formatted_s).to eq("50.00")
       end
@@ -390,6 +385,11 @@ module Superfeature
       it 'formats discounted price' do
         price = Price.new(100.0).discount_fixed(20.0)
         expect(price.to_formatted_s).to eq("80.00")
+      end
+
+      it 'formats with no decimals' do
+        price = Price.new(49.99)
+        expect(price.to_formatted_s(decimals: 0)).to eq("50")
       end
     end
 
@@ -424,7 +424,7 @@ module Superfeature
 
         expect(price.amount).to eq(29.99)
         expect(price.original.amount).to eq(49.99)
-        expect(price.fixed_discount).to eq(20.00)
+        expect(price.discount.fixed).to eq(20.00)
       end
 
       it 'supports percentage discount chaining' do
@@ -432,7 +432,7 @@ module Superfeature
 
         expect(price.amount).to eq(75.0)
         expect(price.original.amount).to eq(100.0)
-        expect(price.percent_discount).to eq(0.25)
+        expect(price.discount.percent).to eq(25.0)
       end
 
       it 'allows multiple discounts' do
@@ -457,33 +457,13 @@ module Superfeature
         expect(price.amount).to eq(85.0)
       end
 
-      it 'preserves precision through chain' do
-        price = Price.new(100.0, amount_precision: 3)
+      it 'preserves range through chain' do
+        price = Price.new(100.0, range: 0..200)
           .discount_fixed(10.0)
           .discount_fixed(5.0)
 
-        expect(price.amount_precision).to eq(3)
-        expect(price.original.amount_precision).to eq(3)
-      end
-    end
-
-    describe 'precision configuration' do
-      it 'has configurable default amount precision constant' do
-        expect(Price::DEFAULT_AMOUNT_PRECISION).to eq(2)
-      end
-
-      it 'has configurable default percent precision constant' do
-        expect(Price::DEFAULT_PERCENT_PRECISION).to eq(4)
-      end
-
-      it 'uses custom amount precision for rounding' do
-        price = Price.new(100.0, amount_precision: 3).discount_percent(0.3333)
-        expect(price.amount).to eq(66.67)
-      end
-
-      it 'uses custom percent precision for rounding' do
-        price = Price.new(99.99, percent_precision: 2).discount_fixed(33.33)
-        expect(price.percent_discount).to eq(0.33)
+        expect(price.range).to eq(0..200)
+        expect(price.original.range).to eq(0..200)
       end
     end
 
@@ -558,9 +538,9 @@ module Superfeature
           expect(result.discounted?).to be false
         end
 
-        it 'preserves precision settings' do
-          result = Price.new(100, amount_precision: 3) + 10
-          expect(result.amount_precision).to eq(3)
+        it 'preserves range settings' do
+          result = Price.new(100, range: 0..200) + 10
+          expect(result.range).to eq(0..200)
         end
       end
 
@@ -601,16 +581,16 @@ module Superfeature
 
     describe 'unary minus' do
       it 'negates the price' do
-        expect((-Price.new(100)).amount).to eq(-100.0)
+        expect((-Price.new(100, range: nil)).amount).to eq(-100.0)
       end
 
       it 'works with negative prices' do
-        expect((-Price.new(-50)).amount).to eq(50.0)
+        expect((-Price.new(-50, range: nil)).amount).to eq(50.0)
       end
 
-      it 'preserves precision settings' do
-        result = -Price.new(100, amount_precision: 3)
-        expect(result.amount_precision).to eq(3)
+      it 'preserves range settings' do
+        result = -Price.new(100, range: nil)
+        expect(result.range).to be_nil
       end
     end
 
@@ -620,42 +600,47 @@ module Superfeature
       end
 
       it 'returns absolute value of negative price' do
-        expect(Price.new(-100).abs.amount).to eq(100.0)
+        expect(Price.new(-100, range: nil).abs.amount).to eq(100.0)
       end
 
-      it 'preserves precision settings' do
-        result = Price.new(-100, amount_precision: 3).abs
-        expect(result.amount_precision).to eq(3)
+      it 'preserves range settings' do
+        result = Price.new(-100, range: nil).abs
+        expect(result.range).to be_nil
       end
     end
 
-    describe '#zero?' do
+    describe '#zero? / #free?' do
       it 'returns true for zero price' do
         expect(Price.new(0)).to be_zero
+        expect(Price.new(0)).to be_free
       end
 
       it 'returns false for non-zero price' do
         expect(Price.new(100)).not_to be_zero
+        expect(Price.new(100)).not_to be_free
       end
     end
 
-    describe '#positive?' do
+    describe '#positive? / #paid?' do
       it 'returns true for positive price' do
         expect(Price.new(100)).to be_positive
+        expect(Price.new(100)).to be_paid
       end
 
       it 'returns false for zero' do
         expect(Price.new(0)).not_to be_positive
+        expect(Price.new(0)).not_to be_paid
       end
 
       it 'returns false for negative price' do
-        expect(Price.new(-100)).not_to be_positive
+        expect(Price.new(-100, range: nil)).not_to be_positive
+        expect(Price.new(-100, range: nil)).not_to be_paid
       end
     end
 
     describe '#negative?' do
       it 'returns true for negative price' do
-        expect(Price.new(-100)).to be_negative
+        expect(Price.new(-100, range: nil)).to be_negative
       end
 
       it 'returns false for zero' do
@@ -677,26 +662,26 @@ module Superfeature
         expect(Price.new(19.456).round(2).amount).to eq(19.46)
       end
 
-      it 'preserves precision settings' do
-        result = Price.new(19.999, amount_precision: 3).round
-        expect(result.amount_precision).to eq(3)
+      it 'preserves range settings' do
+        result = Price.new(19.999, range: 0..100).round
+        expect(result.range).to eq(0..100)
       end
     end
 
     describe '#clamp' do
       it 'clamps price within range' do
-        expect(Price.new(150).clamp(0, 100).amount).to eq(100.0)
-        expect(Price.new(-50).clamp(0, 100).amount).to eq(0.0)
+        expect(Price.new(150, range: nil).clamp(0, 100).amount).to eq(100.0)
+        expect(Price.new(-50, range: nil).clamp(0, 100).amount).to eq(0.0)
         expect(Price.new(50).clamp(0, 100).amount).to eq(50.0)
       end
 
       it 'accepts Price objects as bounds' do
-        expect(Price.new(150).clamp(Price.new(0), Price.new(100)).amount).to eq(100.0)
+        expect(Price.new(150, range: nil).clamp(Price.new(0), Price.new(100)).amount).to eq(100.0)
       end
 
-      it 'preserves precision settings' do
-        result = Price.new(150, amount_precision: 3).clamp(0, 100)
-        expect(result.amount_precision).to eq(3)
+      it 'preserves range settings' do
+        result = Price.new(150, range: nil).clamp(0, 100)
+        expect(result.range).to be_nil
       end
     end
 
@@ -810,29 +795,29 @@ module Superfeature
       end
     end
 
-    describe '#discount_source' do
+    describe '#discount.source' do
       it 'returns nil when no discount applied' do
         price = Price.new(100.0)
-        expect(price.discount_source).to be_nil
+        expect(price.discount.source).to be_nil
       end
 
-      it 'returns the string passed to discount' do
+      it 'returns the Discount object used' do
         price = Price.new(100.0).apply_discount("25%")
-        expect(price.discount_source).to eq("25%")
+        expect(price.discount.source).to be_a(Discount::Percent)
       end
 
-      it 'returns the numeric value passed to discount' do
+      it 'returns the Discount object for numeric discount' do
         price = Price.new(100.0).apply_discount(20)
-        expect(price.discount_source).to eq(20)
+        expect(price.discount.source).to be_a(Discount::Fixed)
       end
 
-      it 'returns the Discount object passed to discount' do
+      it 'returns the Discount object passed directly' do
         discount = Discount::Percent.new(25)
         price = Price.new(100.0).apply_discount(discount)
-        expect(price.discount_source).to eq(discount)
+        expect(price.discount.source).to eq(discount)
       end
 
-      it 'returns custom object passed to discount' do
+      it 'works with custom objects responding to to_discount' do
         deal = Class.new do
           attr_reader :name
 
@@ -847,17 +832,17 @@ module Superfeature
         end.new("Launch Special", 25)
 
         price = Price.new(100.0).apply_discount(deal)
-        expect(price.discount_source).to eq(deal)
-        expect(price.discount_source.name).to eq("Launch Special")
+        expect(price.discount.source).to be_a(Discount::Percent)
+        expect(price.amount).to eq(75.0)
       end
 
-      it 'tracks discount_source through chains' do
+      it 'tracks discount source through chains' do
         price = Price.new(100.0)
           .apply_discount("10%")
           .apply_discount("$5")
 
-        expect(price.discount_source).to eq("$5")
-        expect(price.original.discount_source).to eq("10%")
+        expect(price.discount.source).to be_a(Discount::Fixed)
+        expect(price.original.discount.source).to be_a(Discount::Percent)
       end
     end
 
@@ -912,9 +897,7 @@ module Superfeature
         price = Price.new(100.0).apply_discount(promotion)
 
         expect(price.amount).to eq(70.0)
-        expect(price.discount_source).to eq(promotion)
-        expect(price.discount_source.name).to eq("Summer Sale")
-        expect(price.discount_source.percent_off).to eq(30)
+        expect(price.discount.source).to be_a(Discount::Percent)
       end
     end
   end

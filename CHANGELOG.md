@@ -6,6 +6,26 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking Changes
 
+- **`Price` now uses `BigDecimal` internally** - All price calculations now use `BigDecimal` to avoid floating-point precision errors. This fixes issues like `49.99 - 20.00` returning `29.990000000000002`.
+
+  ```ruby
+  price = Price(49.99)
+  price.amount  # => BigDecimal("49.99")
+  price.to_f    # => 49.99 (Float)
+  price.to_i    # => 49 (Integer)
+  price.to_d    # => BigDecimal("49.99")
+  ```
+
+- **Renamed `Price#to(amount)` to `Price#discount_to(amount)`** - Clearer naming for setting a target price:
+
+  ```ruby
+  # Before
+  price = Price(300).to(200)
+  
+  # After
+  price = Price(300).discount_to(200)
+  ```
+
 - **Renamed `Price#discount(source)` to `Price#apply_discount(source)`** - The `discount` method is now purely an accessor that returns the applied discount object. Use `apply_discount` to apply discounts.
 
   ```ruby
@@ -16,7 +36,66 @@ All notable changes to this project will be documented in this file.
   price = Price(100).apply_discount(Percent(20))
   ```
 
+- **Removed `Price#fixed_discount` and `Price#percent_discount` methods** - Use `price.discount.fixed` and `price.discount.percent` instead:
+
+  ```ruby
+  # Before
+  price.fixed_discount    # => 20.0
+  price.percent_discount  # => 0.20
+  
+  # After
+  price.discount.fixed    # => 20.0
+  price.discount.percent  # => 20.0 (now returns percentage, not decimal)
+  ```
+
+- **Removed `Price#discount_source`** - Use `price.discount.source` instead:
+
+  ```ruby
+  # Before
+  price.discount_source  # => the original discount object
+  
+  # After
+  price.discount.source  # => the original discount object
+  ```
+
+- **Removed `amount_precision` and `percent_precision` from `Price`** - Precision is now a display concern. Use the `decimals:` kwarg on formatting methods:
+
+  ```ruby
+  # Before
+  Price(49.99, amount_precision: 3).to_formatted_s
+  
+  # After
+  Price(49.99).to_formatted_s(decimals: 3)
+  ```
+
+- **Added `range` parameter to `Price` (default `0..`)** - Prices are clamped to this range by default. Use `range: nil` to allow negative prices:
+
+  ```ruby
+  Price(-10).amount              # => 0.0 (clamped to range 0..)
+  Price(-10, range: nil).amount  # => -10.0 (no clamping)
+  Price(50, range: 10..100).amount  # => 50.0 (within range)
+  ```
+
 ### Added
+
+- **`Price#to_d`** - Returns the amount as a `BigDecimal`:
+
+  ```ruby
+  Price(49.99).to_d  # => BigDecimal("49.99")
+  ```
+
+- **`Price#to_i`** - Returns the amount as an integer (truncated):
+
+  ```ruby
+  Price(49.99).to_i  # => 49
+  ```
+
+- **`free?` and `paid?` aliases** - More readable alternatives:
+
+  ```ruby
+  Price(0).free?    # => true (alias for zero?)
+  Price(100).paid?  # => true (alias for positive?)
+  ```
 
 - **`Discount::None` null object** - `price.discount` now returns a `None` object instead of `nil` when no discount is applied, enabling safe chaining without `&.`:
 
@@ -53,13 +132,13 @@ All notable changes to this project will be documented in this file.
 - **Unary minus** - Negate a price for credits/refunds:
 
   ```ruby
-  -Price(100)  # => Price(-100)
+  -Price(100, range: nil)  # => Price(-100)
   ```
 
 - **`abs`** - Get absolute value:
 
   ```ruby
-  Price(-100).abs  # => Price(100)
+  Price(-100, range: nil).abs  # => Price(100)
   ```
 
 - **`zero?`, `positive?`, `negative?`** - Query price state:
@@ -67,10 +146,10 @@ All notable changes to this project will be documented in this file.
   ```ruby
   Price(0).zero?       # => true
   Price(100).positive? # => true
-  Price(-50).negative? # => true
+  Price(-50, range: nil).negative? # => true
   ```
 
-- **`round`** - Round to specified precision (defaults to amount_precision):
+- **`round`** - Round to specified precision:
 
   ```ruby
   Price(19.999).round     # => Price(20.00)
@@ -80,8 +159,8 @@ All notable changes to this project will be documented in this file.
 - **`clamp`** - Constrain price within bounds:
 
   ```ruby
-  Price(150).clamp(0, 100)  # => Price(100)
-  Price(-50).clamp(0, 100)  # => Price(0)
+  Price(150, range: nil).clamp(0, 100)  # => Price(100)
+  Price(-50, range: nil).clamp(0, 100)  # => Price(0)
   ```
 
 - **Coercion** - Enables `Numeric + Price` (not just `Price + Numeric`):
@@ -102,14 +181,6 @@ All notable changes to this project will be documented in this file.
   # Round to nearest 0.99 for $X.99 pricing
   Price(100).apply_discount(Percent(50).charm(0.99).down)  # => Price(49.50)
   Price(100).apply_discount(Percent(50).charm(0.99).up)    # => Price(50.49)
-  ```
-
-  The `charm(n)` method returns an object you can inspect:
-  
-  ```ruby
-  charm = Percent(50).charm(0.99)
-  charm.multiple  # => 0.99
-  charm.discount  # => the Percent(50) discount
   ```
 
 - **`Discount::Applied` wrapper class** - When a discount is applied, `price.discount` now returns an `Applied` object with computed values and formatting helpers:
@@ -136,5 +207,10 @@ All notable changes to this project will be documented in this file.
 ### Migration Guide
 
 1. Replace all calls to `price.discount(source)` with `price.apply_discount(source)`
-2. Replace `(price.percent_discount * 100).to_i` with `price.discount.percent.to_i` or `price.discount.to_percent_s`
-3. Replace `price.fixed_discount` with `price.discount.fixed` when you want the computed savings from the applied discount
+2. Replace all calls to `price.to(amount)` with `price.discount_to(amount)`
+3. Replace `price.fixed_discount` with `price.discount.fixed`
+4. Replace `(price.percent_discount * 100).to_i` with `price.discount.percent.to_i` or `price.discount.to_percent_s`
+5. Replace `price.discount_source` with `price.discount.source`
+6. Replace `amount_precision:` and `percent_precision:` with `decimals:` kwarg on formatting methods
+7. If you relied on negative prices, add `range: nil` to your Price constructor
+8. If you were comparing `price.amount` as a Float, note it's now a BigDecimal (use `to_f` if needed)
