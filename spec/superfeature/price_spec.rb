@@ -65,73 +65,73 @@ module Superfeature
       end
     end
 
-    describe '#discount' do
+    describe '#apply_discount' do
       context 'with numeric value' do
         it 'treats numeric as fixed dollar discount' do
-          price = Price.new(100.0).discount(20)
+          price = Price.new(100.0).apply_discount(20)
           expect(price.amount).to eq(80.0)
         end
 
         it 'treats decimal as cents, not percent' do
-          price = Price.new(100.0).discount(0.80)
+          price = Price.new(100.0).apply_discount(0.80)
           expect(price.amount).to eq(99.2)
         end
       end
 
       context 'with percent string' do
         it 'parses "25%" as 25% off' do
-          price = Price.new(100.0).discount("25%")
+          price = Price.new(100.0).apply_discount("25%")
           expect(price.amount).to eq(75.0)
         end
 
         it 'parses "50%" as 50% off' do
-          price = Price.new(100.0).discount("50%")
+          price = Price.new(100.0).apply_discount("50%")
           expect(price.amount).to eq(50.0)
         end
 
         it 'parses "10.5%" as 10.5% off' do
-          price = Price.new(100.0).discount("10.5%")
+          price = Price.new(100.0).apply_discount("10.5%")
           expect(price.amount).to eq(89.5)
         end
       end
 
       context 'with dollar string' do
         it 'parses "$20" as $20 off' do
-          price = Price.new(100.0).discount("$20")
+          price = Price.new(100.0).apply_discount("$20")
           expect(price.amount).to eq(80.0)
         end
 
         it 'parses "20" as $20 off' do
-          price = Price.new(100.0).discount("20")
+          price = Price.new(100.0).apply_discount("20")
           expect(price.amount).to eq(80.0)
         end
 
         it 'parses "$19.99" as $19.99 off' do
-          price = Price.new(100.0).discount("$19.99")
+          price = Price.new(100.0).apply_discount("$19.99")
           expect(price.amount).to eq(80.01)
         end
       end
 
       context 'with nil' do
         it 'returns the price unchanged' do
-          price = Price.new(100.0).discount(nil)
+          price = Price.new(100.0).apply_discount(nil)
           expect(price.amount).to eq(100.0)
         end
 
         it 'does not mark the price as discounted' do
-          price = Price.new(100.0).discount(nil)
+          price = Price.new(100.0).apply_discount(nil)
           expect(price.discounted?).to be false
         end
 
         it 'has no discount_source' do
-          price = Price.new(100.0).discount(nil)
+          price = Price.new(100.0).apply_discount(nil)
           expect(price.discount_source).to be_nil
         end
       end
 
       context 'with invalid input' do
         it 'raises ArgumentError for invalid format' do
-          expect { Price.new(100.0).discount("invalid") }.to raise_error(ArgumentError)
+          expect { Price.new(100.0).apply_discount("invalid") }.to raise_error(ArgumentError)
         end
       end
     end
@@ -504,6 +504,73 @@ module Superfeature
       end
     end
 
+    describe '#discount (accessor)' do
+      it 'returns nil when no discount applied' do
+        price = Price.new(100.0)
+        expect(price.discount).to be_nil
+      end
+
+      it 'returns an Applied discount wrapping Discount::Percent' do
+        price = Price.new(100.0).apply_discount("50%")
+        expect(price.discount).to be_a(Discount::Applied)
+        expect(price.discount.source).to be_a(Discount::Percent)
+      end
+
+      it 'returns an Applied discount wrapping Discount::Fixed' do
+        price = Price.new(100.0).apply_discount("$20")
+        expect(price.discount).to be_a(Discount::Applied)
+        expect(price.discount.source).to be_a(Discount::Fixed)
+      end
+
+      it 'wraps the Discount object when passed directly' do
+        discount = Discount::Percent.new(25)
+        price = Price.new(100.0).apply_discount(discount)
+        expect(price.discount.source).to eq(discount)
+      end
+
+      it 'allows formatted display via to_formatted_s' do
+        price = Price.new(100.0).apply_discount("50%")
+        expect(price.discount.to_formatted_s).to eq("50%")
+      end
+
+      it 'allows access to computed percent value' do
+        price = Price.new(100.0).apply_discount("50%")
+        expect(price.discount.percent).to eq(50.0)
+      end
+
+      it 'allows access to computed fixed value' do
+        price = Price.new(100.0).apply_discount("50%")
+        expect(price.discount.fixed).to eq(50.0)
+      end
+
+      it 'delegates amount to source for Fixed discounts' do
+        price = Price.new(100.0).apply_discount(20)
+        expect(price.discount.amount).to eq(20.0)
+      end
+
+      it 'formats as fixed string' do
+        price = Price.new(19.0).apply_discount(Discount::Percent.new(20))
+        expect(price.discount.to_fixed_s).to eq("3.80")
+      end
+
+      it 'formats as percent string' do
+        price = Price.new(19.0).apply_discount(Discount::Percent.new(20))
+        expect(price.discount.to_percent_s).to eq("20%")
+      end
+
+      it 'computes correct values for percent discount' do
+        price = Price.new(19.0).apply_discount(Discount::Percent.new(20))
+        expect(price.discount.fixed).to eq(3.8)
+        expect(price.discount.percent).to eq(20.0)
+      end
+
+      it 'computes correct values for fixed discount' do
+        price = Price.new(100.0).apply_discount(Discount::Fixed.new(20))
+        expect(price.discount.fixed).to eq(20.0)
+        expect(price.discount.percent).to eq(20.0)
+      end
+    end
+
     describe '#discount_source' do
       it 'returns nil when no discount applied' do
         price = Price.new(100.0)
@@ -511,18 +578,18 @@ module Superfeature
       end
 
       it 'returns the string passed to discount' do
-        price = Price.new(100.0).discount("25%")
+        price = Price.new(100.0).apply_discount("25%")
         expect(price.discount_source).to eq("25%")
       end
 
       it 'returns the numeric value passed to discount' do
-        price = Price.new(100.0).discount(20)
+        price = Price.new(100.0).apply_discount(20)
         expect(price.discount_source).to eq(20)
       end
 
       it 'returns the Discount object passed to discount' do
         discount = Discount::Percent.new(25)
-        price = Price.new(100.0).discount(discount)
+        price = Price.new(100.0).apply_discount(discount)
         expect(price.discount_source).to eq(discount)
       end
 
@@ -540,15 +607,15 @@ module Superfeature
           end
         end.new("Launch Special", 25)
 
-        price = Price.new(100.0).discount(deal)
+        price = Price.new(100.0).apply_discount(deal)
         expect(price.discount_source).to eq(deal)
         expect(price.discount_source.name).to eq("Launch Special")
       end
 
       it 'tracks discount_source through chains' do
         price = Price.new(100.0)
-          .discount("10%")
-          .discount("$5")
+          .apply_discount("10%")
+          .apply_discount("$5")
 
         expect(price.discount_source).to eq("$5")
         expect(price.original.discount_source).to eq("10%")
@@ -557,12 +624,12 @@ module Superfeature
 
     describe 'discount with Discount objects' do
       it 'accepts Discount::Fixed directly' do
-        price = Price.new(100.0).discount(Discount::Fixed.new(20))
+        price = Price.new(100.0).apply_discount(Discount::Fixed.new(20))
         expect(price.amount).to eq(80.0)
       end
 
       it 'accepts Discount::Percent directly' do
-        price = Price.new(100.0).discount(Discount::Percent.new(25))
+        price = Price.new(100.0).apply_discount(Discount::Percent.new(25))
         expect(price.amount).to eq(75.0)
       end
 
@@ -571,7 +638,7 @@ module Superfeature
           Discount::Fixed.new(10),
           Discount::Percent.new(20)
         )
-        price = Price.new(100.0).discount(bundle)
+        price = Price.new(100.0).apply_discount(bundle)
         # 100 - 10 = 90, then 90 * 0.8 = 72
         expect(price.amount).to eq(72.0)
       end
@@ -585,7 +652,7 @@ module Superfeature
           end
         end.new
 
-        price = Price.new(100.0).discount(custom_discount)
+        price = Price.new(100.0).apply_discount(custom_discount)
         expect(price.amount).to eq(50.0)
       end
 
@@ -603,7 +670,7 @@ module Superfeature
           end
         end.new(name: "Summer Sale", percent_off: 30)
 
-        price = Price.new(100.0).discount(promotion)
+        price = Price.new(100.0).apply_discount(promotion)
 
         expect(price.amount).to eq(70.0)
         expect(price.discount_source).to eq(promotion)

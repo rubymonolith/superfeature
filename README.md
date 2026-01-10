@@ -330,12 +330,12 @@ The `Price` class helps you work with prices and discounts in views:
 ```ruby
 # Apply discounts
 price = Superfeature::Price.new(100.00)
-price.discount_fixed(20)      # => $80.00 (fixed $20 off)
-price.discount_percent(0.25)  # => $75.00 (25% off)
-price.discount("25%")         # => $75.00 (parses string)
-price.discount("$20")         # => $80.00 (parses string)
-price.discount(20)            # => $80.00 (numeric = dollars)
-price.to(80)                  # => $80.00 (set target price directly)
+price.apply_discount(20)            # => $80.00 (numeric = dollars off)
+price.apply_discount("25%")         # => $75.00 (parses string)
+price.apply_discount("$20")         # => $80.00 (parses string)
+price.discount_fixed(20)            # => $80.00 (fixed $20 off)
+price.discount_percent(0.25)        # => $75.00 (25% off)
+price.to(80)                        # => $80.00 (set target price directly)
 
 # Chain discounts
 price = Superfeature::Price.new(100.00)
@@ -350,13 +350,36 @@ price.percent_discount # => 0.0556 (percent saved from last discount)
 price.discounted?      # => true
 ```
 
+### Accessing applied discounts
+
+When a discount is applied, `price.discount` returns an `Applied` object with formatting helpers:
+
+```ruby
+price = Price(100).apply_discount(Percent(20))
+
+price.discount                # => Discount::Applied
+price.discount.percent        # => 20.0 (computed percent saved)
+price.discount.fixed          # => 20.0 (computed dollars saved)
+price.discount.to_percent_s   # => "20%"
+price.discount.to_fixed_s     # => "20.00"
+price.discount.to_formatted_s # => "20%" (natural format from source)
+price.discount.source         # => the original Discount::Percent object
+```
+
+This makes it easy to build UI messages:
+
+```ruby
+"Save #{price.discount.to_percent_s}, that's $#{price.discount.to_fixed_s}!"
+# => "Save 20%, that's $20.00!"
+```
+
 ### Displaying discounts in views
 
 ```erb
 <% if price.discounted? %>
   <span class="original-price line-through">$<%= price.original.to_formatted_s %></span>
   <span class="sale-price">$<%= price.to_formatted_s %></span>
-  <span class="savings"><%= (price.percent_discount * 100).to_i %>% off!</span>
+  <span class="savings"><%= price.discount.to_percent_s %> off!</span>
 <% else %>
   <span class="price">$<%= price.to_formatted_s %></span>
 <% end %>
@@ -394,14 +417,14 @@ Or with `include Superfeature`:
 ```ruby
 include Superfeature
 
-Price(100).discount(Percent(25))
-Price(100).discount(Fixed(20))
-Price(100).discount(Bundle(Fixed(5), Percent(20)))
+Price(100).apply_discount(Percent(25))
+Price(100).apply_discount(Fixed(20))
+Price(100).apply_discount(Bundle(Fixed(5), Percent(20)))
 ```
 
 ### Custom discount sources with `to_discount`
 
-Any object can be passed to `Price#discount` if it implements `to_discount`:
+Any object can be passed to `Price#apply_discount` if it implements `to_discount`:
 
 ```ruby
 class Promotion < ApplicationRecord
@@ -411,7 +434,7 @@ class Promotion < ApplicationRecord
 end
 
 promo = Promotion.find(1)
-price = Superfeature::Price.new(100).discount(promo)
+price = Superfeature::Price.new(100).apply_discount(promo)
 
 price.amount          # => discounted amount
 price.discount_source # => the Promotion instance

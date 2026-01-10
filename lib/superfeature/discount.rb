@@ -4,6 +4,26 @@ module Superfeature
       def to_discount = self
     end
 
+    class Applied
+      attr_reader :source, :fixed, :percent
+
+      def initialize(source, fixed:, percent:)
+        @source = source
+        @fixed = fixed
+        @percent = percent
+      end
+
+      def to_formatted_s = source.to_formatted_s
+
+      def to_fixed_s = "%.2f" % fixed
+
+      def to_percent_s = "#{percent.to_i}%"
+
+      def amount
+        source.amount if source.respond_to?(:amount)
+      end
+    end
+
     class Fixed < Base
       attr_reader :amount
 
@@ -12,6 +32,8 @@ module Superfeature
       end
 
       def apply(price) = price - amount
+
+      def to_formatted_s = amount.to_i.to_s
     end
 
     class Percent < Base
@@ -22,6 +44,8 @@ module Superfeature
       end
 
       def apply(price) = price * (1 - percent / 100.0)
+
+      def to_formatted_s = "#{percent.to_i}%"
     end
 
     class Bundle < Base

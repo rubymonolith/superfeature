@@ -17,6 +17,16 @@ module Superfeature
         discount = Discount::Fixed.new(19.99)
         expect(discount.apply(100)).to eq(80.01)
       end
+
+      it 'formats as integer string' do
+        discount = Discount::Fixed.new(20)
+        expect(discount.to_formatted_s).to eq("20")
+      end
+
+      it 'truncates decimal in formatted string' do
+        discount = Discount::Fixed.new(19.99)
+        expect(discount.to_formatted_s).to eq("19")
+      end
     end
 
     describe Discount::Percent do
@@ -43,6 +53,16 @@ module Superfeature
       it 'accepts float percentages' do
         discount = Discount::Percent.new(10.5)
         expect(discount.apply(100)).to eq(89.5)
+      end
+
+      it 'formats as percentage string' do
+        discount = Discount::Percent.new(50)
+        expect(discount.to_formatted_s).to eq("50%")
+      end
+
+      it 'truncates decimal in formatted string' do
+        discount = Discount::Percent.new(10.5)
+        expect(discount.to_formatted_s).to eq("10%")
       end
     end
 

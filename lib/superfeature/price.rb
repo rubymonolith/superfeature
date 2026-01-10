@@ -11,12 +11,13 @@ module Superfeature
     DEFAULT_AMOUNT_PRECISION = 2
     DEFAULT_PERCENT_PRECISION = 4
 
-    attr_reader :amount, :original, :discount_source, :amount_precision, :percent_precision
+    attr_reader :amount, :original, :discount_source, :discount, :amount_precision, :percent_precision
 
-    def initialize(amount, original: nil, discount_source: nil, amount_precision: DEFAULT_AMOUNT_PRECISION, percent_precision: DEFAULT_PERCENT_PRECISION)
+    def initialize(amount, original: nil, discount_source: nil, discount: nil, amount_precision: DEFAULT_AMOUNT_PRECISION, percent_precision: DEFAULT_PERCENT_PRECISION)
       @amount = amount.to_f
       @original = original
       @discount_source = discount_source
+      @discount = discount
       @amount_precision = amount_precision
       @percent_precision = percent_precision
     end
@@ -27,15 +28,20 @@ module Superfeature
     # - Discount object: Discount::Percent.new(25) → 25% off
     # - Any object responding to to_discount
     # - nil: no discount, returns self
-    def discount(source)
+    def apply_discount(source)
       return self if source.nil?
       
       discount_obj = coerce_discount(source)
       new_amount = [discount_obj.apply(@amount), 0].max.round(@amount_precision)
+      fixed_saved = (@amount - new_amount).round(@amount_precision)
+      percent_saved = @amount.zero? ? 0.0 : (fixed_saved / @amount * 100).round(@percent_precision)
+
+      applied = Discount::Applied.new(discount_obj, fixed: fixed_saved, percent: percent_saved)
 
       Price.new(new_amount,
         original: self,
         discount_source: source,
+        discount: applied,
         amount_precision: @amount_precision,
         percent_precision: @percent_precision
       )
@@ -43,7 +49,7 @@ module Superfeature
 
     # Apply a fixed dollar discount
     def discount_fixed(amount)
-      discount(Discount::Fixed.new(amount.to_f))
+      apply_discount(Discount::Fixed.new(amount.to_f))
     end
 
     # Set the price to a specific amount (calculates discount from current amount)
@@ -54,7 +60,7 @@ module Superfeature
 
     # Apply a percentage discount (decimal, e.g., 0.25 for 25%)
     def discount_percent(percent)
-      discount(Discount::Percent.new(percent.to_f * 100))
+      apply_discount(Discount::Percent.new(percent.to_f * 100))
     end
 
     # Dollars saved from original price
