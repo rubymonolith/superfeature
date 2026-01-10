@@ -487,6 +487,118 @@ module Superfeature
       end
     end
 
+    describe 'comparison operators' do
+      it 'compares two prices with ==' do
+        expect(Price.new(100)).to eq(Price.new(100))
+        expect(Price.new(100)).not_to eq(Price.new(50))
+      end
+
+      it 'compares price with numeric using ==' do
+        expect(Price.new(100)).to eq(100)
+        expect(Price.new(100)).to eq(100.0)
+        expect(Price.new(100)).not_to eq(50)
+      end
+
+      it 'compares prices with <' do
+        expect(Price.new(50)).to be < Price.new(100)
+        expect(Price.new(100)).not_to be < Price.new(50)
+      end
+
+      it 'compares price with numeric using <' do
+        expect(Price.new(50)).to be < 100
+        expect(Price.new(100)).not_to be < 50
+      end
+
+      it 'compares prices with >' do
+        expect(Price.new(100)).to be > Price.new(50)
+        expect(Price.new(50)).not_to be > Price.new(100)
+      end
+
+      it 'compares price with numeric using >' do
+        expect(Price.new(100)).to be > 50
+        expect(Price.new(50)).not_to be > 100
+      end
+
+      it 'compares prices with <=' do
+        expect(Price.new(50)).to be <= Price.new(100)
+        expect(Price.new(100)).to be <= Price.new(100)
+      end
+
+      it 'compares prices with >=' do
+        expect(Price.new(100)).to be >= Price.new(50)
+        expect(Price.new(100)).to be >= Price.new(100)
+      end
+
+      it 'compares discounted prices' do
+        full = Price.new(100)
+        discounted = Price.new(100).apply_discount(Discount::Percent.new(20))
+        expect(discounted).to be < full
+        expect(discounted).to eq(80)
+      end
+
+      it 'returns nil when comparing with incompatible type' do
+        expect(Price.new(100) <=> "string").to be_nil
+      end
+    end
+
+    describe 'math operators' do
+      describe '+' do
+        it 'adds a numeric to a price' do
+          expect((Price.new(100) + 20).amount).to eq(120.0)
+        end
+
+        it 'adds two prices together' do
+          expect((Price.new(100) + Price.new(50)).amount).to eq(150.0)
+        end
+
+        it 'returns a new Price without discount info' do
+          discounted = Price.new(100).apply_discount("20%")
+          result = discounted + 10
+          expect(result.amount).to eq(90.0)
+          expect(result.discounted?).to be false
+        end
+
+        it 'preserves precision settings' do
+          result = Price.new(100, amount_precision: 3) + 10
+          expect(result.amount_precision).to eq(3)
+        end
+      end
+
+      describe '-' do
+        it 'subtracts a numeric from a price' do
+          expect((Price.new(100) - 20).amount).to eq(80.0)
+        end
+
+        it 'subtracts one price from another' do
+          expect((Price.new(100) - Price.new(30)).amount).to eq(70.0)
+        end
+      end
+
+      describe '*' do
+        it 'multiplies a price by a numeric' do
+          expect((Price.new(100) * 2).amount).to eq(200.0)
+        end
+
+        it 'multiplies two prices' do
+          expect((Price.new(10) * Price.new(5)).amount).to eq(50.0)
+        end
+      end
+
+      describe '/' do
+        it 'divides a price by a numeric' do
+          expect((Price.new(100) / 4).amount).to eq(25.0)
+        end
+
+        it 'divides one price by another' do
+          expect((Price.new(100) / Price.new(4)).amount).to eq(25.0)
+        end
+      end
+
+      it 'raises ArgumentError for incompatible types' do
+        expect { Price.new(100) + "string" }.to raise_error(ArgumentError)
+      end
+    end
+
     describe 'edge cases' do
       it 'handles very small amounts' do
         price = Price.new(0.01).discount_percent(0.5)
@@ -505,9 +617,13 @@ module Superfeature
     end
 
     describe '#discount (accessor)' do
-      it 'returns nil when no discount applied' do
+      it 'returns Discount::None when no discount applied' do
         price = Price.new(100.0)
-        expect(price.discount).to be_nil
+        expect(price.discount).to be_a(Discount::None)
+        expect(price.discount.none?).to be true
+        expect(price.discount.to_formatted_s).to eq("")
+        expect(price.discount.to_percent_s).to eq("0%")
+        expect(price.discount.to_fixed_s).to eq("0.00")
       end
 
       it 'returns an Applied discount wrapping Discount::Percent' do

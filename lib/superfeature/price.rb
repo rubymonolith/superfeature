@@ -8,10 +8,12 @@ module Superfeature
   public :Price
 
   class Price
+    include Comparable
+
     DEFAULT_AMOUNT_PRECISION = 2
     DEFAULT_PERCENT_PRECISION = 4
 
-    attr_reader :amount, :original, :discount_source, :discount, :amount_precision, :percent_precision
+    attr_reader :amount, :original, :discount_source, :amount_precision, :percent_precision
 
     def initialize(amount, original: nil, discount_source: nil, discount: nil, amount_precision: DEFAULT_AMOUNT_PRECISION, percent_precision: DEFAULT_PERCENT_PRECISION)
       @amount = amount.to_f
@@ -20,6 +22,10 @@ module Superfeature
       @discount = discount
       @amount_precision = amount_precision
       @percent_precision = percent_precision
+    end
+
+    def discount
+      @discount || Discount::None.new
     end
 
     # Apply a discount from various sources:
@@ -97,6 +103,30 @@ module Superfeature
       @amount.to_s
     end
 
+    def <=>(other)
+      case other
+      when Price then @amount <=> other.amount
+      when Numeric then @amount <=> other
+      else nil
+      end
+    end
+
+    def +(other)
+      Price.new(@amount + to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
+    def -(other)
+      Price.new(@amount - to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
+    def *(other)
+      Price.new(@amount * to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
+    def /(other)
+      Price.new(@amount / to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
     def inspect
       if discounted?
         "#<Price #{to_formatted_s} (was #{@original.to_formatted_s}, #{(percent_discount * 100).round(1)}% off)>"
@@ -106,6 +136,14 @@ module Superfeature
     end
 
     private
+
+    def to_amount(other)
+      case other
+      when Price then other.amount
+      when Numeric then other
+      else raise ArgumentError, "Cannot convert #{other.class} to amount"
+      end
+    end
 
     def coerce_discount(source)
       case source

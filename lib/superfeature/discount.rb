@@ -22,6 +22,19 @@ module Superfeature
       def amount
         source.amount if source.respond_to?(:amount)
       end
+
+      def none? = false
+    end
+
+    class None
+      def source = nil
+      def fixed = 0.0
+      def percent = 0.0
+      def amount = nil
+      def to_formatted_s = ""
+      def to_fixed_s = "0.00"
+      def to_percent_s = "0%"
+      def none? = true
     end
 
     class Fixed < Base
