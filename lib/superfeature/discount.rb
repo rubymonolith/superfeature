@@ -73,6 +73,69 @@ module Superfeature
       end
     end
 
+    # Charmed discount wrapper - applies discount then rounds to charm price
+    class Charmed < Base
+      attr_reader :discount, :multiple, :direction
+
+      def initialize(discount, multiple, direction)
+        @discount = discount
+        @multiple = multiple
+        @direction = direction
+      end
+
+      def apply(price)
+        result = @discount.apply(price)
+        charm_round(result)
+      end
+
+      def to_formatted_s = @discount.to_formatted_s
+
+      private
+
+      def charm_round(value)
+        multiple = @multiple.to_f
+        case @direction
+        when :up
+          (multiple * (value / multiple).ceil).round(2)
+        when :down
+          (multiple * (value / multiple).floor).round(2)
+        when :nearest
+          (multiple * (value / multiple).round).round(2)
+        end
+      end
+    end
+
+    # Charm builder - returned by discount.charm(n)
+    class Charm
+      attr_reader :discount, :multiple
+
+      def initialize(discount, multiple)
+        @discount = discount
+        @multiple = multiple
+      end
+
+      def up
+        Charmed.new(@discount, @multiple, :up)
+      end
+      alias greedy up
+
+      def down
+        Charmed.new(@discount, @multiple, :down)
+      end
+      alias generous down
+
+      def round
+        Charmed.new(@discount, @multiple, :nearest)
+      end
+    end
+
+    # Add charm method to Base
+    class Base
+      def charm(multiple)
+        Charm.new(self, multiple)
+      end
+    end
+
     # Convenience methods: Discount::Fixed(20) instead of Discount::Fixed.new(20)
     def self.Fixed(amount) = Fixed.new(amount)
     def self.Percent(percent) = Percent.new(percent)

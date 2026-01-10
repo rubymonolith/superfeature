@@ -599,6 +599,129 @@ module Superfeature
       end
     end
 
+    describe 'unary minus' do
+      it 'negates the price' do
+        expect((-Price.new(100)).amount).to eq(-100.0)
+      end
+
+      it 'works with negative prices' do
+        expect((-Price.new(-50)).amount).to eq(50.0)
+      end
+
+      it 'preserves precision settings' do
+        result = -Price.new(100, amount_precision: 3)
+        expect(result.amount_precision).to eq(3)
+      end
+    end
+
+    describe '#abs' do
+      it 'returns absolute value of positive price' do
+        expect(Price.new(100).abs.amount).to eq(100.0)
+      end
+
+      it 'returns absolute value of negative price' do
+        expect(Price.new(-100).abs.amount).to eq(100.0)
+      end
+
+      it 'preserves precision settings' do
+        result = Price.new(-100, amount_precision: 3).abs
+        expect(result.amount_precision).to eq(3)
+      end
+    end
+
+    describe '#zero?' do
+      it 'returns true for zero price' do
+        expect(Price.new(0)).to be_zero
+      end
+
+      it 'returns false for non-zero price' do
+        expect(Price.new(100)).not_to be_zero
+      end
+    end
+
+    describe '#positive?' do
+      it 'returns true for positive price' do
+        expect(Price.new(100)).to be_positive
+      end
+
+      it 'returns false for zero' do
+        expect(Price.new(0)).not_to be_positive
+      end
+
+      it 'returns false for negative price' do
+        expect(Price.new(-100)).not_to be_positive
+      end
+    end
+
+    describe '#negative?' do
+      it 'returns true for negative price' do
+        expect(Price.new(-100)).to be_negative
+      end
+
+      it 'returns false for zero' do
+        expect(Price.new(0)).not_to be_negative
+      end
+
+      it 'returns false for positive price' do
+        expect(Price.new(100)).not_to be_negative
+      end
+    end
+
+    describe '#round' do
+      it 'rounds to default precision' do
+        expect(Price.new(19.999).round.amount).to eq(20.0)
+      end
+
+      it 'rounds to specified precision' do
+        expect(Price.new(19.999).round(1).amount).to eq(20.0)
+        expect(Price.new(19.456).round(2).amount).to eq(19.46)
+      end
+
+      it 'preserves precision settings' do
+        result = Price.new(19.999, amount_precision: 3).round
+        expect(result.amount_precision).to eq(3)
+      end
+    end
+
+    describe '#clamp' do
+      it 'clamps price within range' do
+        expect(Price.new(150).clamp(0, 100).amount).to eq(100.0)
+        expect(Price.new(-50).clamp(0, 100).amount).to eq(0.0)
+        expect(Price.new(50).clamp(0, 100).amount).to eq(50.0)
+      end
+
+      it 'accepts Price objects as bounds' do
+        expect(Price.new(150).clamp(Price.new(0), Price.new(100)).amount).to eq(100.0)
+      end
+
+      it 'preserves precision settings' do
+        result = Price.new(150, amount_precision: 3).clamp(0, 100)
+        expect(result.amount_precision).to eq(3)
+      end
+    end
+
+    describe '#coerce' do
+      it 'allows numeric + Price' do
+        expect((10 + Price.new(5)).amount).to eq(15.0)
+      end
+
+      it 'allows numeric - Price' do
+        expect((100 - Price.new(30)).amount).to eq(70.0)
+      end
+
+      it 'allows numeric * Price' do
+        expect((3 * Price.new(10)).amount).to eq(30.0)
+      end
+
+      it 'allows numeric / Price' do
+        expect((100 / Price.new(4)).amount).to eq(25.0)
+      end
+
+      it 'raises TypeError for incompatible types' do
+        expect { Price.new(100).coerce("string") }.to raise_error(TypeError)
+      end
+    end
+
     describe 'edge cases' do
       it 'handles very small amounts' do
         price = Price.new(0.01).discount_percent(0.5)

@@ -50,6 +50,68 @@ All notable changes to this project will be documented in this file.
   Price(100) / 4           # => Price(25)
   ```
 
+- **Unary minus** - Negate a price for credits/refunds:
+
+  ```ruby
+  -Price(100)  # => Price(-100)
+  ```
+
+- **`abs`** - Get absolute value:
+
+  ```ruby
+  Price(-100).abs  # => Price(100)
+  ```
+
+- **`zero?`, `positive?`, `negative?`** - Query price state:
+
+  ```ruby
+  Price(0).zero?       # => true
+  Price(100).positive? # => true
+  Price(-50).negative? # => true
+  ```
+
+- **`round`** - Round to specified precision (defaults to amount_precision):
+
+  ```ruby
+  Price(19.999).round     # => Price(20.00)
+  Price(19.456).round(2)  # => Price(19.46)
+  ```
+
+- **`clamp`** - Constrain price within bounds:
+
+  ```ruby
+  Price(150).clamp(0, 100)  # => Price(100)
+  Price(-50).clamp(0, 100)  # => Price(0)
+  ```
+
+- **Coercion** - Enables `Numeric + Price` (not just `Price + Numeric`):
+
+  ```ruby
+  10 + Price(5)   # => Price(15)
+  100 - Price(30) # => Price(70)
+  ```
+
+- **Charm pricing on discounts** - Round discounted prices to "charm" multiples (e.g., $9.99, $19, $49):
+
+  ```ruby
+  # Round to nearest multiple of 9
+  Price(99).apply_discount(Percent(50).charm(9).down)   # => Price(45)
+  Price(99).apply_discount(Percent(50).charm(9).up)     # => Price(54)
+  Price(99).apply_discount(Percent(50).charm(9).round)  # => Price(54) (nearest)
+
+  # Round to nearest 0.99 for $X.99 pricing
+  Price(100).apply_discount(Percent(50).charm(0.99).down)  # => Price(49.50)
+  Price(100).apply_discount(Percent(50).charm(0.99).up)    # => Price(50.49)
+  ```
+
+  The `charm(n)` method returns an object you can inspect:
+  
+  ```ruby
+  charm = Percent(50).charm(0.99)
+  charm.multiple  # => 0.99
+  charm.discount  # => the Percent(50) discount
+  ```
+
 - **`Discount::Applied` wrapper class** - When a discount is applied, `price.discount` now returns an `Applied` object with computed values and formatting helpers:
 
   ```ruby

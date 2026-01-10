@@ -127,6 +127,41 @@ module Superfeature
       Price.new(@amount / to_amount(other), amount_precision: @amount_precision, percent_precision: @percent_precision)
     end
 
+    def -@
+      Price.new(-@amount, amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
+    def abs
+      Price.new(@amount.abs, amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
+    def zero?
+      @amount.zero?
+    end
+
+    def positive?
+      @amount.positive?
+    end
+
+    def negative?
+      @amount.negative?
+    end
+
+    def round(precision = @amount_precision)
+      Price.new(@amount.round(precision), amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
+    def clamp(min, max)
+      Price.new(@amount.clamp(to_amount(min), to_amount(max)), amount_precision: @amount_precision, percent_precision: @percent_precision)
+    end
+
+    def coerce(other)
+      case other
+      when Numeric then [Price.new(other, amount_precision: @amount_precision, percent_precision: @percent_precision), self]
+      else raise TypeError, "#{other.class} can't be coerced into Price"
+      end
+    end
+
     def inspect
       if discounted?
         "#<Price #{to_formatted_s} (was #{@original.to_formatted_s}, #{(percent_discount * 100).round(1)}% off)>"
