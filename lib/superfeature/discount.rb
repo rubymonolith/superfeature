@@ -39,7 +39,7 @@ module Superfeature
       def none? = false
 
       def to_fixed_s(decimals: 2)
-        "%.#{decimals}f" % fixed.to_f
+        "%.#{decimals}f" % fixed.abs.to_f
       end
 
       def to_percent_s(decimals: 0)

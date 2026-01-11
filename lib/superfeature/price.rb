@@ -324,7 +324,8 @@ module Superfeature
 
       items.drop(1).each_with_index do |price, index|
         fixed = price.discount.fixed
-        discount_amount = fixed.negative? ? "+#{fixed.abs.to_f.round(2)}" : "-#{price.discount.to_fixed_s}"
+        sign = fixed.negative? ? "+" : "-"
+        discount_amount = "#{sign}#{price.discount.to_fixed_s}"
         label = price.discount.to_receipt_s
         output << format_line(label, discount_amount, amount_width)
         output << separator_line
