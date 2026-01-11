@@ -9,26 +9,33 @@ module Superfeature
   module_function :Price
   public :Price
 
+  # Immutable price object with discount support. Uses BigDecimal internally
+  # to avoid floating-point precision errors.
+  #
+  #   price = Price.new(49.99)
+  #   discounted = price.apply_discount("20%")
+  #   discounted.amount           # => 39.99
+  #   discounted.discount.percent # => 20.0
+  #
   class Price
     include Comparable
 
-    attr_reader :original, :range
+    attr_reader :amount, :original, :range
 
-    def initialize(amount, original: nil, discount: nil, range: 0.., precision: 2)
-      @precision = precision
-      raw = to_decimal(amount)
-      @amount = range ? raw.clamp(range.begin || -Float::INFINITY, range.end || Float::INFINITY).round(@precision) : raw.round(@precision)
+    # Creates a new Price.
+    # - amount: the price value (converted to BigDecimal)
+    # - original: the previous price in a discount chain
+    # - discount: the applied Discount::Applied object
+    # - range: clamp values to this range (default 0.., use nil for no clamping)
+    def initialize(amount, original: nil, discount: nil, range: 0..)
+      @amount = clamp_to_range(to_decimal(amount), range)
       @original = original
       @discount = discount
       @range = range
     end
 
-    def amount
-      @amount
-    end
-
     def discount
-      @discount || Discount::None.new
+      @discount || Discount::NONE
     end
 
     # Apply a discount from various sources:
@@ -40,36 +47,31 @@ module Superfeature
     def apply_discount(source)
       return self if source.nil?
 
-      discount_obj = coerce_discount(source)
-      new_amount = discount_obj.apply(@amount)
-      fixed_saved = @amount - new_amount
-      percent_saved = @amount.zero? ? BigDecimal("0") : (fixed_saved / @amount * 100)
+      discount = coerce_discount(source)
+      discounted = discount.apply(@amount)
+      fixed = @amount - discounted
+      percent = @amount.zero? ? BigDecimal("0") : (fixed / @amount * 100)
 
-      applied = Discount::Applied.new(discount_obj, fixed: fixed_saved, percent: percent_saved)
+      applied = Discount::Applied.new(discount, fixed:, percent:)
 
-      Price.new(new_amount,
-        original: self,
-        discount: applied,
-        range: @range,
-        precision: @precision
-      )
+      build_price(discounted, original: self, discount: applied)
     end
 
     # Apply a fixed dollar discount
     def discount_fixed(amount)
-      apply_discount(Discount::Fixed.new(to_decimal(amount)))
+      apply_discount Discount::Fixed.new to_decimal(amount)
     end
 
     # Set the price to a specific amount
     # Price(300).discount_to(200) is equivalent to Price(300).discount_fixed(100)
     def discount_to(new_amount)
       diff = @amount - to_decimal(new_amount)
-      discount_fixed(diff > 0 ? diff : 0)
+      discount_fixed diff.positive? ? diff : 0
     end
 
     # Apply a percentage discount (decimal, e.g., 0.25 for 25%)
     def discount_percent(percent)
-      apply_discount(Discount::Percent.new(to_decimal(percent) * 100))
+      apply_discount Discount::Percent.new to_decimal(percent) * 100
     end
 
     def discounted?
@@ -84,21 +86,10 @@ module Superfeature
       "%.#{decimals}f" % @amount.to_f
     end
 
-    def to_f
-      @amount.to_f
-    end
-
-    def to_d
-      @amount
-    end
-
-    def to_i
-      @amount.to_i
-    end
-
-    def to_s
-      @amount.to_s('F')
-    end
+    def to_f = @amount.to_f
+    def to_d = @amount
+    def to_i = @amount.to_i
+    def to_s = @amount.to_s('F')
 
     def <=>(other)
       case other
@@ -108,55 +99,27 @@ module Superfeature
       end
     end
 
-    def +(other)
-      Price.new(@amount + to_amount(other), range: @range, precision: @precision)
-    end
+    def +(other) = build_price(@amount + to_amount(other))
+    def -(other) = build_price(@amount - to_amount(other))
+    def *(other) = build_price(@amount * to_amount(other))
+    def /(other) = build_price(@amount / to_amount(other))
+    def -@ = build_price(-@amount)
+    def abs = build_price(@amount.abs)
 
-    def -(other)
-      Price.new(@amount - to_amount(other), range: @range, precision: @precision)
-    end
-
-    def *(other)
-      Price.new(@amount * to_amount(other), range: @range, precision: @precision)
-    end
-
-    def /(other)
-      Price.new(@amount / to_amount(other), range: @range, precision: @precision)
-    end
-
-    def -@
-      Price.new(-@amount, range: @range, precision: @precision)
-    end
-
-    def abs
-      Price.new(@amount.abs, range: @range, precision: @precision)
-    end
-
-    def zero?
-      @amount.zero?
-    end
+    def zero? = @amount.zero?
     alias free? zero?
 
-    def positive?
-      @amount.positive?
-    end
+    def positive? = @amount.positive?
     alias paid? positive?
 
-    def negative?
-      @amount.negative?
-    end
+    def negative? = @amount.negative?
 
-    def round(decimals = 2)
-      Price.new(@amount.round(decimals), range: @range, precision: @precision)
-    end
-
-    def clamp(min, max)
-      Price.new(@amount.clamp(to_amount(min), to_amount(max)), range: @range, precision: @precision)
-    end
+    def round(decimals = 2) = build_price(@amount.round(decimals))
+    def clamp(min, max) = build_price(@amount.clamp(to_amount(min), to_amount(max)))
 
     def coerce(other)
       case other
-      when Numeric then [Price.new(other, range: @range, precision: @precision), self]
+      when Numeric then [build_price(other), self]
       else raise TypeError, "#{other.class} can't be coerced into Price"
       end
     end
@@ -170,6 +133,18 @@ module Superfeature
     end
 
     private
+
+    def build_price(amount, **options)
+      Price.new(amount, range: @range, **options)
+    end
+
+    def clamp_to_range(value, range)
+      return value unless range
+
+      min = range.begin || -Float::INFINITY
+      max = range.end || Float::INFINITY
+      value.clamp(min, max)
+    end
 
     def to_decimal(value)
       case value
@@ -190,19 +165,17 @@ module Superfeature
     def coerce_discount(source)
       case source
       when String then parse_discount_string(source)
-      when Numeric then Discount::Fixed.new(to_decimal(source))
+      when Numeric then Discount::Fixed.new to_decimal(source)
       else source.to_discount
       end
     end
 
     def parse_discount_string(str)
       case str
-      when /\A(\d+(?:\.\d+)?)\s*%\z/
-        Discount::Percent.new(BigDecimal($1))
-      when /\A\$?\s*(\d+(?:\.\d+)?)\z/
-        Discount::Fixed.new(BigDecimal($1))
-      else
-        raise ArgumentError, "Invalid discount format: #{str.inspect}"
+      when nil then Discount::NONE
+      when Discount::Percent::PATTERN then Discount::Percent.parse(str)
+      when Discount::Fixed::PATTERN then Discount::Fixed.parse(str)
+      else raise ArgumentError, "Invalid discount format: #{str.inspect}"
       end
     end
   end

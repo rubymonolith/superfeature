@@ -373,7 +373,7 @@ module Superfeature
       end
 
       it 'formats with custom decimals' do
-        price = Price.new(49.999, precision: 3)
+        price = Price.new(49.999)
         expect(price.to_formatted_s(decimals: 3)).to eq("49.999")
       end
 
@@ -710,7 +710,7 @@ module Superfeature
     describe 'edge cases' do
       it 'handles very small amounts' do
         price = Price.new(0.01).discount_percent(0.5)
-        expect(price.amount).to eq(0.01)
+        expect(price.amount).to eq(BigDecimal("0.005"))
       end
 
       it 'handles large amounts' do

@@ -26,16 +26,19 @@ module Superfeature
       end
 
       def to_formatted_s = source.to_formatted_s
+      def none? = false
 
-      def to_fixed_s(decimals: 2) = "%.#{decimals}f" % fixed.to_f
+      def to_fixed_s(decimals: 2)
+        "%.#{decimals}f" % fixed.to_f
+      end
 
-      def to_percent_s(decimals: 0) = decimals.zero? ? "#{percent.to_i}%" : "%.#{decimals}f%%" % percent.to_f
+      def to_percent_s(decimals: 0)
+        decimals.zero? ? "#{percent.to_i}%" : "%.#{decimals}f%%" % percent.to_f
+      end
 
       def amount
         source.amount if source.respond_to?(:amount)
       end
-
-      def none? = false
     end
 
     class None
@@ -44,33 +47,57 @@ module Superfeature
       def percent = BigDecimal("0")
       def amount = nil
       def to_formatted_s = ""
-      def to_fixed_s(decimals: 2) = "%.#{decimals}f" % 0
-      def to_percent_s(decimals: 0) = decimals.zero? ? "0%" : "%.#{decimals}f%%" % 0
       def none? = true
+
+      def to_fixed_s(decimals: 2)
+        "%.#{decimals}f" % 0
+      end
+
+      def to_percent_s(decimals: 0)
+        decimals.zero? ? "0%" : "%.#{decimals}f%%" % 0
+      end
     end
 
+    NONE = None.new.freeze
+
     class Fixed < Base
+      PATTERN = /\A\$?\s*(\d+(?:\.\d+)?)\z/
+
+      def self.parse(str)
+        str.match(PATTERN) { |m| new(BigDecimal(m.captures.first)) }
+      end
+
       attr_reader :amount
 
       def initialize(amount)
         @amount = to_decimal(amount)
       end
 
-      def apply(price) = to_decimal(price) - @amount
-
       def to_formatted_s = @amount.to_i.to_s
+
+      def apply(price)
+        to_decimal(price) - @amount
+      end
     end
 
     class Percent < Base
+      PATTERN = /\A(\d+(?:\.\d+)?)\s*%\z/
+
+      def self.parse(str)
+        str.match(PATTERN) { |m| new(BigDecimal(m.captures.first)) }
+      end
+
       attr_reader :percent
 
       def initialize(percent)
         @percent = to_decimal(percent)
       end
 
-      def apply(price) = to_decimal(price) * (1 - @percent / 100)
-
       def to_formatted_s = "#{@percent.to_i}%"
+
+      def apply(price)
+        to_decimal(price) * (1 - @percent / 100)
+      end
     end
 
     class Bundle < Base
