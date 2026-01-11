@@ -308,9 +308,10 @@ module Superfeature
   #   #   FINAL                  70.00
   #
   class Inspector
-    def initialize(itemization, label_width: 20)
+    def initialize(itemization, label_width: 20, max_label_width: 30)
       @itemization = itemization
       @label_width = label_width
+      @max_label_width = max_label_width
     end
 
     def to_s
@@ -355,7 +356,11 @@ module Superfeature
     end
 
     def format_line(label, amount, amount_width)
-      "%-#{@label_width}s%#{amount_width}s" % [label, amount]
+      if label.length > @max_label_width
+        "#{label}\n#{' ' * @label_width}%#{amount_width}s" % [amount]
+      else
+        "%-#{@label_width}s%#{amount_width}s" % [label, amount]
+      end
     end
   end
 

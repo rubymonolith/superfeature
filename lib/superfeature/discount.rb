@@ -132,7 +132,7 @@ module Superfeature
           Superfeature::Charm.new(@ending).up(price)
         end
 
-        def to_formatted_s = "charm up to #{@ending}"
+        def to_formatted_s = "Charm"
       end
 
       class Down < Base
@@ -146,7 +146,7 @@ module Superfeature
           Superfeature::Charm.new(@ending).down(price)
         end
 
-        def to_formatted_s = "charm down to #{@ending}"
+        def to_formatted_s = "Charm"
       end
 
       class Nearest < Base
@@ -160,7 +160,7 @@ module Superfeature
           Superfeature::Charm.new(@ending).nearest(price)
         end
 
-        def to_formatted_s = "charm to #{@ending}"
+        def to_formatted_s = "Charm"
       end
     end
 
