@@ -12,16 +12,16 @@ module Superfeature
   class Price
     include Comparable
 
-    attr_reader :amount, :original, :range
+    attr_reader :amount, :previous, :range
 
     # Creates a new Price.
     # - amount: the price value (converted to BigDecimal)
-    # - original: the previous price in a discount chain
+    # - previous: the previous price in a discount chain
     # - discount: the applied Discount::Applied object
     # - range: clamp values to this range (default 0.., use nil for no clamping)
-    def initialize(amount, original: nil, discount: nil, range: 0..)
+    def initialize(amount, previous: nil, discount: nil, range: 0..)
       @amount = clamp_to_range(to_decimal(amount), range)
-      @original = original
+      @previous = previous
       @discount = discount
       @range = range
     end
@@ -46,7 +46,7 @@ module Superfeature
 
       applied = Discount::Applied.new(discount, fixed:, percent:)
 
-      build_price(discounted, original: self, discount: applied)
+      build_price(discounted, previous: self, discount: applied)
     end
 
     # Apply a fixed dollar discount
@@ -67,12 +67,29 @@ module Superfeature
     end
 
     def discounted?
-      !@original.nil?
+      !@previous.nil?
     end
 
-    # Returns the undiscounted price (walks up the discount chain)
+    # Returns the original price (walks all the way back in the discount chain)
+    def original
+      current = self
+      current = current.previous while current.previous
+      current
+    end
+
+    # Returns an Itemization enumerable for walking the discount chain.
+    def itemization
+      Itemization.new(self)
+    end
+
+    # Returns an Inspector for formatting the price breakdown as text.
+    def inspector
+      Inspector.new(self)
+    end
+
+    # Returns the undiscounted price amount (walks up the discount chain)
     def full_price
-      @original ? @original.amount : @amount
+      original.amount
     end
 
     def to_formatted_s(decimals: 2)
@@ -129,7 +146,7 @@ module Superfeature
 
     def inspect
       if discounted?
-        "#<Price #{to_formatted_s} (was #{@original.to_formatted_s}, #{discount.percent.to_f.round(1)}% off)>"
+        "#<Price #{to_formatted_s} (was #{@previous.to_formatted_s}, #{discount.percent.to_f.round(1)}% off)>"
       else
         "#<Price #{to_formatted_s}>"
       end
@@ -180,6 +197,130 @@ module Superfeature
       when Discount::Fixed::PATTERN then Discount::Fixed.parse(str)
       else raise ArgumentError, "Invalid discount format: #{str.inspect}"
       end
+    end
+  end
+
+  # Enumerates prices in a discount chain from original to final.
+  #
+  #   final = Price(100).apply_discount("20%").apply_discount("$10")
+  #   itemization = Itemization.new(final)
+  #
+  #   itemization.original # => Price(100)
+  #   itemization.final    # => Price(70)
+  #   itemization.count    # => 3
+  #   itemization.each { |p| puts p }
+  #
+  class Itemization
+    include Enumerable
+
+    def initialize(price)
+      @final = price
+    end
+
+    def each(&block)
+      return to_enum(:each) unless block_given?
+
+      to_a.each(&block)
+    end
+
+    def to_a
+      @prices ||= build_chain
+    end
+
+    def original
+      to_a.first
+    end
+    alias first original
+
+    def final
+      @final
+    end
+    alias last final
+
+    def size
+      to_a.size
+    end
+    alias count size
+    alias length size
+
+    private
+
+    def build_chain
+      prices = []
+      current = @final
+
+      while current
+        prices.unshift(current)
+        current = current.previous
+      end
+
+      prices
+    end
+  end
+
+  # Formats a price itemization as a receipt-style text breakdown.
+  #
+  #   final = Price(100).apply_discount("20%").apply_discount("$10")
+  #   puts Inspector.new(final)
+  #
+  #   # Output:
+  #   #   Original              100.00
+  #   #   20% off               -20.00
+  #   #                       --------
+  #   #   Subtotal               80.00
+  #   #   $10 off               -10.00
+  #   #                       --------
+  #   #   FINAL                  70.00
+  #
+  class Inspector
+    def initialize(price, label_width: 20)
+      @price = price
+      @label_width = label_width
+    end
+
+    def to_s
+      items = @price.itemization.to_a
+      amount_width = calculate_amount_width(items)
+      separator_line = " " * @label_width + "-" * amount_width
+
+      output = []
+      output << format_line("Original", items.first.to_formatted_s, amount_width)
+
+      items.drop(1).each_with_index do |price, index|
+        discount_amount = "-#{price.discount.to_fixed_s}"
+        label = price.discount.to_formatted_s.empty? ? "Discount" : "#{price.discount.to_formatted_s} off"
+        output << format_line(label, discount_amount, amount_width)
+        output << separator_line
+
+        is_last = index == items.length - 2
+        if is_last
+          output << format_line("FINAL", price.to_formatted_s, amount_width)
+        else
+          output << format_line("Subtotal", price.to_formatted_s, amount_width)
+        end
+      end
+
+      # Handle case with no discounts
+      if items.length == 1
+        output << separator_line
+        output << format_line("FINAL", items.first.to_formatted_s, amount_width)
+      end
+
+      output.join("\n")
+    end
+
+    private
+
+    def calculate_amount_width(items)
+      widths = items.map { |p| p.to_formatted_s.length }
+      items.drop(1).each do |p|
+        widths << "-#{p.discount.to_fixed_s}".length
+      end
+      widths.max + 2
+    end
+
+    def format_line(label, amount, amount_width)
+      "%-#{@label_width}s%#{amount_width}s" % [label, amount]
     end
   end
 end

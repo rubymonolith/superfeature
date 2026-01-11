@@ -108,6 +108,11 @@ module Superfeature
         expect(charm).to be_a(Discount::Charm)
       end
 
+      it 'is a discount' do
+        charm = Discount::Percent.new(50).charm(0.99)
+        expect(charm).to be_a(Discount::Base)
+      end
+
       it 'exposes the discount' do
         percent = Discount::Percent.new(50)
         charm = percent.charm(0.99)
@@ -117,6 +122,19 @@ module Superfeature
       it 'exposes the ending' do
         charm = Discount::Percent.new(50).charm(0.99)
         expect(charm.ending).to eq(0.99)
+      end
+
+      it 'defaults to nearest rounding when applied' do
+        charm = Discount::Fixed.new(0).charm(9)
+        # 21 is closer to 19 than 29
+        expect(charm.apply(21)).to eq(19)
+        # 26 is closer to 29 than 19
+        expect(charm.apply(26)).to eq(29)
+      end
+
+      it 'preserves to_formatted_s from wrapped discount' do
+        charm = Discount::Percent.new(50).charm(0.99)
+        expect(charm.to_formatted_s).to eq("50%")
       end
     end
 
@@ -169,20 +187,6 @@ module Superfeature
         end
       end
 
-      describe '#round' do
-        it 'rounds to nearest price ending in 9 (down)' do
-          discount = Discount::Fixed.new(0).charm(9).round
-          # 21 is closer to 19 than 29
-          expect(discount.apply(21)).to eq(19)
-        end
-
-        it 'rounds to nearest price ending in 9 (up)' do
-          discount = Discount::Fixed.new(0).charm(9).round
-          # 26 is closer to 29 than 19
-          expect(discount.apply(26)).to eq(29)
-        end
-      end
-
       it 'works with Fixed discounts' do
         discount = Discount::Fixed.new(10).charm(0.99).down
         # 100 - 10 = 90 → round down to ending .99 → 89.99
@@ -222,13 +226,13 @@ module Superfeature
           it { expect(charmed.apply(0.0)).to eq(0.0) }     # zero stays zero
         end
 
-        describe '.round' do
-          subject(:charmed) { discount.charm(0.99).round }
+        describe 'default (nearest)' do
+          subject(:charm) { discount.charm(0.99) }
 
-          it { expect(charmed.apply(2.50)).to eq(2.99) }   # closer to 2.99 than 1.99
-          it { expect(charmed.apply(2.48)).to eq(1.99) }   # closer to 1.99 than 2.99
-          it { expect(charmed.apply(2.99)).to eq(2.99) }   # exact match stays
-          it { expect(charmed.apply(0.0)).to eq(0.0) }     # zero stays zero
+          it { expect(charm.apply(2.50)).to eq(2.99) }   # closer to 2.99 than 1.99
+          it { expect(charm.apply(2.48)).to eq(1.99) }   # closer to 1.99 than 2.99
+          it { expect(charm.apply(2.99)).to eq(2.99) }   # exact match stays
+          it { expect(charm.apply(0.0)).to eq(0.0) }     # zero stays zero
         end
       end
 
@@ -257,13 +261,13 @@ module Superfeature
           it { expect(charmed.apply(0)).to eq(0) }      # zero stays zero
         end
 
-        describe '.round' do
-          subject(:charmed) { discount.charm(9).round }
+        describe 'default (nearest)' do
+          subject(:charm) { discount.charm(9) }
 
-          it { expect(charmed.apply(14)).to eq(9) }     # closer to 9 than 19
-          it { expect(charmed.apply(15)).to eq(19) }    # closer to 19 than 9
-          it { expect(charmed.apply(19)).to eq(19) }    # exact match stays
-          it { expect(charmed.apply(0)).to eq(0) }      # zero stays zero
+          it { expect(charm.apply(14)).to eq(9) }     # closer to 9 than 19
+          it { expect(charm.apply(15)).to eq(19) }    # closer to 19 than 9
+          it { expect(charm.apply(19)).to eq(19) }    # exact match stays
+          it { expect(charm.apply(0)).to eq(0) }      # zero stays zero
         end
       end
 

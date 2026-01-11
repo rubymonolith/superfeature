@@ -175,17 +175,26 @@ module Superfeature
       end
     end
 
-    # Builder for charm pricing. Use .up, .down, or .round to set direction.
+    # Charm pricing discount. Applies a discount then rounds to a charm ending.
+    # Defaults to nearest rounding. Use .up or .down for explicit direction.
     #
+    #   Discount::Percent.new(20).charm(9)       # rounds to nearest price ending in 9
+    #   Discount::Percent.new(20).charm(9).up    # rounds up to price ending in 9
     #   Discount::Percent.new(20).charm(9).down  # rounds down to price ending in 9
     #
-    class Charm
+    class Charm < Base
       attr_reader :discount, :ending
 
       def initialize(discount, ending)
         @discount = discount
-        @ending = ending
+        @ending = to_decimal(ending)
       end
+
+      def apply(price)
+        Charmed.new(@discount, @ending, :nearest).apply(price)
+      end
+
+      def to_formatted_s = @discount.to_formatted_s
 
       def up
         Charmed.new(@discount, @ending, :up)
@@ -196,10 +205,6 @@ module Superfeature
         Charmed.new(@discount, @ending, :down)
       end
       alias generous down
-
-      def round
-        Charmed.new(@discount, @ending, :nearest)
-      end
     end
 
     # Add charm method to Base

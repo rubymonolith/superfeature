@@ -181,16 +181,18 @@ All notable changes to this project will be documented in this file.
   100 - Price(30) # => Price(70)
   ```
 
-- **Charm pricing on discounts** - Round discounted prices to "charm" endings (e.g., $9.99, $19, $29):
+- **Charm pricing on discounts** - Round discounted prices to "charm" endings (e.g., $9.99, $19, $29). `charm()` is itself a discount that defaults to nearest rounding, with `.up` and `.down` for explicit direction:
 
   ```ruby
-  # Prices ending in 9 ($9, $19, $29, $39...)
-  Price(99).apply_discount(Percent(50).charm(9).down)   # => Price(49)
-  Price(99).apply_discount(Percent(50).charm(9).up)     # => Price(59)
+  # charm(9) is a discount - defaults to nearest rounding
+  Price(100).apply_discount(Percent(50).charm(9))       # => Price(49) (nearest)
+  Price(100).apply_discount(Percent(50).charm(9).up)    # => Price(59) (round up)
+  Price(100).apply_discount(Percent(50).charm(9).down)  # => Price(49) (round down)
 
   # Prices ending in .99 ($0.99, $1.99, $2.99...)
-  Price(100).apply_discount(Percent(50).charm(0.99).down)  # => Price(49.99)
+  Price(100).apply_discount(Percent(50).charm(0.99))       # => Price(49.99)
   Price(100).apply_discount(Percent(50).charm(0.99).up)    # => Price(50.99)
+  Price(100).apply_discount(Percent(50).charm(0.99).down)  # => Price(49.99)
 
   # Prices ending in 99 ($99, $199, $299...)
   Price(300).apply_discount(Percent(50).charm(99).up)   # => Price(199)
@@ -217,6 +219,62 @@ All notable changes to this project will be documented in this file.
   Discount::Percent.new(50).to_formatted_s # => "50%"
   ```
 
+- **`Itemization` class for walking discount chains** - Enumerate all prices in a discount chain from original to final:
+
+  ```ruby
+  final = Price(100).apply_discount("20%").apply_discount("$10")
+  
+  # Access via Price#itemization
+  final.itemization.original # => Price(100)
+  final.itemization.final    # => Price(70)
+  final.itemization.count    # => 3
+  
+  # Enumerable - iterate from original to final
+  final.itemization.each { |p| puts "#{p} (#{p.discount.to_formatted_s})" }
+  # 100 ()
+  # 80 (20%)
+  # 70 ($10)
+  
+  # Use Enumerable methods
+  final.itemization.map(&:to_s)           # => ["100", "80", "70"]
+  final.itemization.select(&:discounted?) # => [Price(80), Price(70)]
+  ```
+
+- **`Price#previous` for immediate parent price** - Access the price before the most recent discount:
+
+  ```ruby
+  final = Price(100).apply_discount("20%").apply_discount("$10")
+  
+  final.previous          # => Price(80) - immediate parent
+  final.previous.previous # => Price(100) - one more step back
+  final.original          # => Price(100) - walks all the way back
+  ```
+
+- **`Price#original` now returns the true original price** - Walks all the way back to the first price in the chain:
+
+  ```ruby
+  final = Price(100).apply_discount("20%").apply_discount("$10")
+  
+  final.original        # => Price(100) - the starting price
+  final.original == final.itemization.first  # => true
+  ```
+
+- **`Inspector` class for receipt-style formatting** - Format a price breakdown as a readable receipt:
+
+  ```ruby
+  final = Price(100).apply_discount("20%").apply_discount("$10")
+  puts final.inspector
+  
+  # Output:
+  # Original              100.00
+  # 20% off               -20.00
+  #                     --------
+  # Subtotal               80.00
+  # 10 off                -10.00
+  #                     --------
+  # FINAL                  70.00
+  ```
+
 ### Migration Guide
 
 1. Replace all calls to `price.discount(source)` with `price.apply_discount(source)`
@@ -227,3 +285,4 @@ All notable changes to this project will be documented in this file.
 6. Replace `amount_precision:` and `percent_precision:` with `decimals:` kwarg on formatting methods
 7. If you relied on negative prices, add `range: nil` to your Price constructor
 8. If you were comparing `price.amount` as a Float, note it's now a BigDecimal (use `to_f` if needed)
+9. Replace `price.original` with `price.previous` if you need the immediate parent price (one step back). `price.original` now walks all the way back to the first price in the chain.

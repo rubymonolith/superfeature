@@ -39,9 +39,14 @@ module Superfeature
         expect(price.amount).to eq(50.0)
       end
 
-      it 'has no original by default' do
+      it 'has no previous by default' do
         price = Price.new(49.99)
-        expect(price.original).to be_nil
+        expect(price.previous).to be_nil
+      end
+
+      it 'returns itself as original when no discounts' do
+        price = Price.new(49.99)
+        expect(price.original).to eq(price)
       end
 
       it 'uses default range of 0..' do
@@ -147,9 +152,9 @@ module Superfeature
         expect(price.amount).to be_within(0.001).of(29.99)
       end
 
-      it 'preserves the original price' do
+      it 'preserves the previous price' do
         price = Price.new(49.99).discount_fixed(20.00)
-        expect(price.original.amount).to eq(49.99)
+        expect(price.previous.amount).to eq(49.99)
       end
 
       it 'does not modify the original Price object' do
@@ -192,9 +197,9 @@ module Superfeature
         expect(price_to.amount).to eq(price_fixed.amount)
       end
 
-      it 'preserves the original price' do
+      it 'preserves the previous price' do
         price = Price.new(300).discount_to(200)
-        expect(price.original.amount).to eq(300.0)
+        expect(price.previous.amount).to eq(300.0)
       end
 
       it 'calculates the correct fixed discount' do
@@ -234,9 +239,9 @@ module Superfeature
         expect(price.amount).to eq(75.0)
       end
 
-      it 'preserves the original price' do
+      it 'preserves the previous price' do
         price = Price.new(100.0).discount_percent(0.25)
-        expect(price.original.amount).to eq(100.0)
+        expect(price.previous.amount).to eq(100.0)
       end
 
       it 'handles 50% discount' do
@@ -423,7 +428,7 @@ module Superfeature
         price = Price.new(49.99).discount_fixed(20.00)
 
         expect(price.amount).to eq(29.99)
-        expect(price.original.amount).to eq(49.99)
+        expect(price.previous.amount).to eq(49.99)
         expect(price.discount.fixed).to eq(20.00)
       end
 
@@ -431,7 +436,7 @@ module Superfeature
         price = Price.new(100.0).discount_percent(0.25)
 
         expect(price.amount).to eq(75.0)
-        expect(price.original.amount).to eq(100.0)
+        expect(price.previous.amount).to eq(100.0)
         expect(price.discount.percent).to eq(25.0)
       end
 
@@ -443,8 +448,9 @@ module Superfeature
         # First discount: 100 - 10 = 90
         # Second discount: 90 - 5 = 85
         expect(price.amount).to eq(85.0)
-        expect(price.original.amount).to eq(90.0)
-        expect(price.original.original.amount).to eq(100.0)
+        expect(price.previous.amount).to eq(90.0)
+        expect(price.previous.previous.amount).to eq(100.0)
+        expect(price.original.amount).to eq(100.0)
       end
 
       it 'allows mixing discount types' do
@@ -463,7 +469,7 @@ module Superfeature
           .discount_fixed(5.0)
 
         expect(price.range).to eq(0..200)
-        expect(price.original.range).to eq(0..200)
+        expect(price.previous.range).to eq(0..200)
       end
     end
 
@@ -842,7 +848,7 @@ module Superfeature
           .apply_discount("$5")
 
         expect(price.discount.source).to be_a(Discount::Fixed)
-        expect(price.original.discount.source).to be_a(Discount::Percent)
+        expect(price.previous.discount.source).to be_a(Discount::Percent)
       end
     end
 
@@ -898,6 +904,205 @@ module Superfeature
 
         expect(price.amount).to eq(70.0)
         expect(price.discount.source).to be_a(Discount::Percent)
+      end
+    end
+
+    describe '#itemization' do
+      it 'returns an Itemization enumerable' do
+        price = Price.new(100.0)
+        expect(price.itemization).to be_a(Itemization)
+      end
+    end
+  end
+
+  RSpec.describe Itemization do
+    describe '#original / #first' do
+      it 'returns the original price before any discounts' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+        itemization = Itemization.new(final)
+
+        expect(itemization.original.amount).to eq(100.0)
+        expect(itemization.first.amount).to eq(100.0)
+      end
+
+      it 'returns the price itself when no discounts applied' do
+        price = Price.new(100)
+        itemization = Itemization.new(price)
+
+        expect(itemization.original.amount).to eq(100.0)
+      end
+    end
+
+    describe '#final / #last' do
+      it 'returns the final price after all discounts' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+        itemization = Itemization.new(final)
+
+        expect(itemization.final.amount).to eq(70.0)
+        expect(itemization.last.amount).to eq(70.0)
+      end
+
+      it 'returns the price itself when no discounts applied' do
+        price = Price.new(100)
+        itemization = Itemization.new(price)
+
+        expect(itemization.final.amount).to eq(100.0)
+      end
+    end
+
+    describe '#each' do
+      it 'yields prices in order from original to final' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+        itemization = Itemization.new(final)
+
+        amounts = itemization.map(&:amount)
+        expect(amounts).to eq([100.0, 80.0, 70.0])
+      end
+
+      it 'returns an enumerator without a block' do
+        price = Price.new(100)
+        itemization = Itemization.new(price)
+
+        expect(itemization.each).to be_a(Enumerator)
+      end
+    end
+
+    describe '#to_a' do
+      it 'returns array of prices from original to final' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+        itemization = Itemization.new(final)
+
+        expect(itemization.to_a.length).to eq(3)
+        expect(itemization.to_a.first.amount).to eq(100.0)
+        expect(itemization.to_a.last.amount).to eq(70.0)
+      end
+    end
+
+    describe '#size / #count / #length' do
+      it 'returns the number of prices in the chain' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+        itemization = Itemization.new(final)
+
+        expect(itemization.size).to eq(3)
+        expect(itemization.count).to eq(3)
+        expect(itemization.length).to eq(3)
+      end
+
+      it 'returns 1 for a single price with no discounts' do
+        price = Price.new(100)
+        itemization = Itemization.new(price)
+
+        expect(itemization.size).to eq(1)
+      end
+    end
+
+    describe 'Enumerable methods' do
+      it 'supports select' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+        itemization = Itemization.new(final)
+
+        discounted = itemization.select(&:discounted?)
+        expect(discounted.length).to eq(2)
+      end
+
+      it 'supports find' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+        itemization = Itemization.new(final)
+
+        found = itemization.find { |p| p.amount < 75 }
+        expect(found.amount).to eq(70.0)
+      end
+    end
+
+    describe 'via Price#itemization' do
+      it 'provides access to the full chain' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+
+        expect(final.itemization.original.amount).to eq(100.0)
+        expect(final.itemization.final.amount).to eq(70.0)
+        expect(final.itemization.count).to eq(3)
+      end
+    end
+
+    describe 'original price itemization' do
+      it 'returns just that price when no discounts' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+
+        expect(final.original.itemization.count).to eq(1)
+        expect(final.original.itemization.first.amount).to eq(100.0)
+        expect(final.original.itemization.last.amount).to eq(100.0)
+      end
+    end
+  end
+
+  RSpec.describe Inspector do
+    describe '#to_s' do
+      it 'formats a simple discount chain' do
+        final = Price.new(100).apply_discount("20%").apply_discount("$10")
+
+        expected = <<~TEXT.chomp
+          Original              100.00
+          20% off               -20.00
+                              --------
+          Subtotal               80.00
+          10 off                -10.00
+                              --------
+          FINAL                  70.00
+        TEXT
+
+        expect(Inspector.new(final).to_s).to eq(expected)
+      end
+
+      it 'formats a single price with no discounts' do
+        price = Price.new(100)
+
+        expected = <<~TEXT.chomp
+          Original              100.00
+                              --------
+          FINAL                 100.00
+        TEXT
+
+        expect(Inspector.new(price).to_s).to eq(expected)
+      end
+
+      it 'formats prices with varying widths' do
+        final = Price.new(1000).apply_discount("50%")
+
+        expected = <<~TEXT.chomp
+          Original              1000.00
+          50% off               -500.00
+                              ---------
+          FINAL                  500.00
+        TEXT
+
+        expect(Inspector.new(final).to_s).to eq(expected)
+      end
+
+      it 'handles charm pricing discounts' do
+        final = Price.new(100).apply_discount(Discount::Percent.new(50).charm(9))
+
+        output = Inspector.new(final).to_s
+        expect(output).to include("Original")
+        expect(output).to include("FINAL")
+        expect(output).to include("49.00")
+      end
+
+      it 'accepts custom label width' do
+        final = Price.new(100).apply_discount("20%")
+
+        output = Inspector.new(final, label_width: 15).to_s
+        expect(output).to include("Original")
+        expect(output).to include("FINAL")
+      end
+    end
+
+    describe 'via Price#inspector' do
+      it 'provides access to the inspector' do
+        final = Price.new(100).apply_discount("20%")
+
+        expect(final.inspector).to be_a(Inspector)
+        expect(final.inspector.to_s).to include("Original")
+        expect(final.inspector.to_s).to include("FINAL")
       end
     end
   end
