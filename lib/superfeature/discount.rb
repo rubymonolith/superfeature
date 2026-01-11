@@ -35,6 +35,7 @@ module Superfeature
       end
 
       def to_formatted_s = source.to_formatted_s
+      def to_receipt_s = source.to_receipt_s
       def none? = false
 
       def to_fixed_s(decimals: 2)
@@ -58,6 +59,7 @@ module Superfeature
       def percent = BigDecimal("0")
       def amount = nil
       def to_formatted_s = ""
+      def to_receipt_s = "Discount"
       def none? = true
 
       def to_fixed_s(decimals: 2)
@@ -86,6 +88,7 @@ module Superfeature
       end
 
       def to_formatted_s = @amount.to_i.to_s
+      def to_receipt_s = "%.2f off" % @amount.to_f
 
       def apply(price)
         to_decimal(price) - @amount
@@ -107,6 +110,7 @@ module Superfeature
       end
 
       def to_formatted_s = "#{@percent.to_i}%"
+      def to_receipt_s = "#{@percent.to_i}% off"
 
       def apply(price)
         to_decimal(price) * (1 - @percent / 100)
@@ -132,7 +136,8 @@ module Superfeature
           Superfeature::Charm.new(@ending).up(price)
         end
 
-        def to_formatted_s = "Charm"
+        def to_formatted_s = "Charm up"
+        def to_receipt_s = "Charm up"
       end
 
       class Down < Base
@@ -146,7 +151,8 @@ module Superfeature
           Superfeature::Charm.new(@ending).down(price)
         end
 
-        def to_formatted_s = "Charm"
+        def to_formatted_s = "Charm down"
+        def to_receipt_s = "Charm down"
       end
 
       class Nearest < Base
@@ -161,6 +167,7 @@ module Superfeature
         end
 
         def to_formatted_s = "Charm"
+        def to_receipt_s = "Charm"
       end
     end
 

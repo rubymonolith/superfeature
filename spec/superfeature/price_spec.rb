@@ -1102,7 +1102,7 @@ module Superfeature
           20% off               -20.00
                               --------
           Subtotal               80.00
-          10 off                -10.00
+          10.00 off             -10.00
                               --------
           FINAL                  70.00
         TEXT

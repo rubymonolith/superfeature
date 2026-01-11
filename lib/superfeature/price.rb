@@ -323,8 +323,9 @@ module Superfeature
       output << format_line("Original", items.first.to_formatted_s, amount_width)
 
       items.drop(1).each_with_index do |price, index|
-        discount_amount = "-#{price.discount.to_fixed_s}"
-        label = price.discount.to_formatted_s.empty? ? "Discount" : "#{price.discount.to_formatted_s} off"
+        fixed = price.discount.fixed
+        discount_amount = fixed.negative? ? "+#{fixed.abs.to_f.round(2)}" : "-#{price.discount.to_fixed_s}"
+        label = price.discount.to_receipt_s
         output << format_line(label, discount_amount, amount_width)
         output << separator_line
 
