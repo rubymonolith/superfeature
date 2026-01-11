@@ -90,6 +90,17 @@ All notable changes to this project will be documented in this file.
   Price(49.99).to_i  # => 49
   ```
 
+- **`Price#to_s` now formats display-friendly** - Whole numbers omit decimals, cents show 2 decimal places:
+
+  ```ruby
+  Price(19).to_s     # => "19"
+  Price(19.99).to_s  # => "19.99"
+  Price(19.50).to_s  # => "19.50"
+  
+  # For consistent decimals, use to_formatted_s
+  Price(19).to_formatted_s(decimals: 2)  # => "19.00"
+  ```
+
 - **`free?` and `paid?` aliases** - More readable alternatives:
 
   ```ruby

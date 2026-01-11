@@ -678,8 +678,8 @@ Outside of Rails, opt-in with `require "superfeature/core_ext"`.
 price.to_f    # => 49.99 (Float)
 price.to_i    # => 49 (Integer)
 price.to_d    # => BigDecimal("49.99")
-price.to_s    # => "49.99"
-price.to_formatted_s(decimals: 0)  # => "50"
+price.to_s    # => "49" or "49.99" (display-friendly, omits .00)
+price.to_formatted_s(decimals: 2)  # => "49.99" (consistent decimals)
 ```
 
 ### Comparisons

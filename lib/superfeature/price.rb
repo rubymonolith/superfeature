@@ -82,7 +82,16 @@ module Superfeature
     def to_f = @amount.to_f
     def to_d = @amount
     def to_i = @amount.to_i
-    def to_s = @amount.to_s('F')
+    # Returns display-friendly string: whole numbers without decimals ("19"),
+    # cents with 2 decimals ("19.50"). Use to_formatted_s(decimals: 2) for
+    # consistent decimal places.
+    def to_s
+      if @amount % 1 == 0
+        @amount.to_i.to_s
+      else
+        "%.2f" % @amount.to_f
+      end
+    end
 
     def <=>(other)
       case other
