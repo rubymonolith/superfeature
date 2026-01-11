@@ -93,6 +93,10 @@ module Superfeature
       def none?
         fixed.zero?
       end
+
+      def to_s
+        to_fixed_s
+      end
     end
 
     # Fixed dollar amount discount (e.g., "$20 off your first month")

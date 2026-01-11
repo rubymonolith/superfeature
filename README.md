@@ -205,11 +205,28 @@ price.amount                  # => 75.0
 price.discounted?             # => true
 price.original.amount         # => 100.0
 
-price.discount.fixed          # => 25.0 (dollars saved)
-price.discount.percent        # => 25.0 (percent saved)
+price.discount.fixed          # => 25.0 (dollars saved this step)
+price.discount.percent        # => 25.0 (percent of original this step)
 price.discount.to_fixed_s     # => "25.00"
 price.discount.to_percent_s   # => "25%"
 price.discount.to_formatted_s # => "25%" (natural format)
+```
+
+### Cumulative Savings
+
+When chaining multiple discounts, use `savings` to get the total discount from the original price:
+
+```ruby
+price = Price(100).apply_discount("20%").apply_discount("$10")
+# 100 -> 80 -> 70
+
+price.discount.fixed          # => 10.0 (last step only)
+price.discount.percent        # => 10.0 (last step as % of original)
+
+price.savings.fixed           # => 30.0 (total saved from original)
+price.savings.percent         # => 30.0 (total % off original)
+price.savings.to_fixed_s      # => "30.00"
+price.savings.to_percent_s    # => "30%"
 ```
 
 ### Discount Objects
