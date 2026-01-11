@@ -170,17 +170,19 @@ All notable changes to this project will be documented in this file.
   100 - Price(30) # => Price(70)
   ```
 
-- **Charm pricing on discounts** - Round discounted prices to "charm" multiples (e.g., $9.99, $19, $49):
+- **Charm pricing on discounts** - Round discounted prices to "charm" endings (e.g., $9.99, $19, $29):
 
   ```ruby
-  # Round to nearest multiple of 9
-  Price(99).apply_discount(Percent(50).charm(9).down)   # => Price(45)
-  Price(99).apply_discount(Percent(50).charm(9).up)     # => Price(54)
-  Price(99).apply_discount(Percent(50).charm(9).round)  # => Price(54) (nearest)
+  # Prices ending in 9 ($9, $19, $29, $39...)
+  Price(99).apply_discount(Percent(50).charm(9).down)   # => Price(49)
+  Price(99).apply_discount(Percent(50).charm(9).up)     # => Price(59)
 
-  # Round to nearest 0.99 for $X.99 pricing
-  Price(100).apply_discount(Percent(50).charm(0.99).down)  # => Price(49.50)
-  Price(100).apply_discount(Percent(50).charm(0.99).up)    # => Price(50.49)
+  # Prices ending in .99 ($0.99, $1.99, $2.99...)
+  Price(100).apply_discount(Percent(50).charm(0.99).down)  # => Price(49.99)
+  Price(100).apply_discount(Percent(50).charm(0.99).up)    # => Price(50.99)
+
+  # Prices ending in 99 ($99, $199, $299...)
+  Price(300).apply_discount(Percent(50).charm(99).up)   # => Price(199)
   ```
 
 - **`Discount::Applied` wrapper class** - When a discount is applied, `price.discount` now returns an `Applied` object with computed values and formatting helpers:

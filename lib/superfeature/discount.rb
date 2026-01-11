@@ -127,13 +127,15 @@ module Superfeature
       end
     end
 
-    # Applies a discount then rounds to a "charm" price (e.g., $49.99, $99)
+    # Applies a discount then rounds to a "charm" price ending (e.g., $19.99, $29, $49)
+    # charm(0.99) rounds to prices ending in .99: $0.99, $1.99, $2.99...
+    # charm(9) rounds to prices ending in 9: $9, $19, $29...
     class Charmed < Base
-      attr_reader :discount, :multiple, :direction
+      attr_reader :discount, :ending, :direction
 
-      def initialize(discount, multiple, direction)
+      def initialize(discount, ending, direction)
         @discount = discount
-        @multiple = to_decimal(multiple)
+        @ending = to_decimal(ending)
         @direction = direction
       end
 
@@ -148,48 +150,62 @@ module Superfeature
 
       def charm_round(value)
         val = to_decimal(value)
+        return val if val.zero?
+
+        # Determine interval from ending
+        # 0.99 → interval of 1 (0.99, 1.99, 2.99...)
+        # 9 → interval of 10 (9, 19, 29...)
+        # 99 → interval of 100 (99, 199, 299...)
+        interval = @ending < 1 ? BigDecimal("1") : BigDecimal("10") ** @ending.to_i.to_s.length
+
+        # Find the candidate (base + ending)
+        base = (val / interval).floor * interval
+        candidate = base + @ending
+
         case @direction
         when :up
-          (@multiple * (val / @multiple).ceil).round(2)
+          candidate < val ? candidate + interval : candidate
         when :down
-          (@multiple * (val / @multiple).floor).round(2)
+          candidate > val ? candidate - interval : candidate
         when :nearest
-          (@multiple * (val / @multiple).round).round(2)
+          up_val = candidate < val ? candidate + interval : candidate
+          down_val = candidate > val ? candidate - interval : candidate
+          (val - down_val).abs <= (up_val - val).abs ? down_val : up_val
         end
       end
     end
 
     # Builder for charm pricing. Use .up, .down, or .round to set direction.
     #
-    #   Discount::Percent.new(20).charm(9).down  # rounds down to nearest $9
+    #   Discount::Percent.new(20).charm(9).down  # rounds down to price ending in 9
     #
     class Charm
-      attr_reader :discount, :multiple
+      attr_reader :discount, :ending
 
-      def initialize(discount, multiple)
+      def initialize(discount, ending)
         @discount = discount
-        @multiple = multiple
+        @ending = ending
       end
 
       def up
-        Charmed.new(@discount, @multiple, :up)
+        Charmed.new(@discount, @ending, :up)
       end
       alias greedy up
 
       def down
-        Charmed.new(@discount, @multiple, :down)
+        Charmed.new(@discount, @ending, :down)
       end
       alias generous down
 
       def round
-        Charmed.new(@discount, @multiple, :nearest)
+        Charmed.new(@discount, @ending, :nearest)
       end
     end
 
     # Add charm method to Base
     class Base
-      def charm(multiple)
-        Charm.new(self, multiple)
+      def charm(ending)
+        Charm.new(self, ending)
       end
     end
 

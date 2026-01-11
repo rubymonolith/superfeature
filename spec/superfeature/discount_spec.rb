@@ -114,69 +114,79 @@ module Superfeature
         expect(charm.discount).to eq(percent)
       end
 
-      it 'exposes the multiple' do
+      it 'exposes the ending' do
         charm = Discount::Percent.new(50).charm(0.99)
-        expect(charm.multiple).to eq(0.99)
+        expect(charm.ending).to eq(0.99)
       end
     end
 
     describe Discount::Charmed do
       describe '#up' do
-        it 'rounds up to nearest multiple' do
+        it 'rounds up to next price ending in .99' do
           discount = Discount::Percent.new(50).charm(0.99).up
-          # 100 * 0.5 = 50 → round up to nearest 0.99 → 50.49 (51 * 0.99)
-          expect(discount.apply(100)).to eq(50.49)
+          # 100 * 0.5 = 50 → round up to ending .99 → 50.99
+          expect(discount.apply(100)).to eq(50.99)
         end
 
-        it 'rounds up to nearest whole number multiple' do
+        it 'rounds up to next price ending in 9' do
           discount = Discount::Percent.new(50).charm(9).up
-          # 99 * 0.5 = 49.5 → round up to nearest 9 → 54 (6 * 9)
-          expect(discount.apply(99)).to eq(54)
+          # 99 * 0.5 = 49.5 → round up to ending 9 → 59
+          expect(discount.apply(99)).to eq(59)
+        end
+
+        it 'stays at exact match' do
+          discount = Discount::Fixed.new(0).charm(9).up
+          expect(discount.apply(19)).to eq(19)
         end
 
         it 'is aliased as greedy' do
           discount = Discount::Percent.new(50).charm(0.99).greedy
-          expect(discount.apply(100)).to eq(50.49)
+          expect(discount.apply(100)).to eq(50.99)
         end
       end
 
       describe '#down' do
-        it 'rounds down to nearest multiple' do
+        it 'rounds down to previous price ending in .99' do
           discount = Discount::Percent.new(50).charm(0.99).down
-          # 100 * 0.5 = 50 → round down to nearest 0.99 → 49.5 (50 * 0.99)
-          expect(discount.apply(100)).to eq(49.5)
+          # 100 * 0.5 = 50 → round down to ending .99 → 49.99
+          expect(discount.apply(100)).to eq(49.99)
         end
 
-        it 'rounds down to nearest whole number multiple' do
+        it 'rounds down to previous price ending in 9' do
           discount = Discount::Percent.new(50).charm(9).down
-          # 99 * 0.5 = 49.5 → round down to nearest 9 → 45 (5 * 9)
-          expect(discount.apply(99)).to eq(45)
+          # 99 * 0.5 = 49.5 → round down to ending 9 → 49
+          expect(discount.apply(99)).to eq(49)
+        end
+
+        it 'stays at exact match' do
+          discount = Discount::Fixed.new(0).charm(9).down
+          expect(discount.apply(19)).to eq(19)
         end
 
         it 'is aliased as generous' do
           discount = Discount::Percent.new(50).charm(0.99).generous
-          expect(discount.apply(100)).to eq(49.5)
+          expect(discount.apply(100)).to eq(49.99)
         end
       end
 
       describe '#round' do
-        it 'rounds to nearest multiple (down)' do
-          discount = Discount::Percent.new(50).charm(9).round
-          # 90 * 0.5 = 45 → nearest 9 → 45 (5 * 9)
-          expect(discount.apply(90)).to eq(45)
+        it 'rounds to nearest price ending in 9 (down)' do
+          discount = Discount::Fixed.new(0).charm(9).round
+          # 21 is closer to 19 than 29
+          expect(discount.apply(21)).to eq(19)
         end
 
-        it 'rounds to nearest multiple (up)' do
-          discount = Discount::Percent.new(50).charm(9).round
-          # 100 * 0.5 = 50 → 50/9 = 5.55 → rounds to 6 → 54 (6 * 9)
-          expect(discount.apply(100)).to eq(54)
+        it 'rounds to nearest price ending in 9 (up)' do
+          discount = Discount::Fixed.new(0).charm(9).round
+          # 26 is closer to 29 than 19
+          expect(discount.apply(26)).to eq(29)
         end
       end
 
       it 'works with Fixed discounts' do
         discount = Discount::Fixed.new(10).charm(0.99).down
-        # 100 - 10 = 90 → round down to nearest 0.99 → 89.1 (90 * 0.99)
-        expect(discount.apply(100)).to eq(89.1)
+        # 100 - 10 = 90 → round down to ending .99 → 89.99
+        expect(discount.apply(100)).to eq(89.99)
       end
 
       it 'preserves to_formatted_s from wrapped discount' do
@@ -189,89 +199,92 @@ module Superfeature
         expect(discount.to_discount).to eq(discount)
       end
 
-      describe 'edge cases with 0.99 charm' do
+      describe 'prices ending in .99' do
         subject(:discount) { Discount::Fixed.new(0) }
 
-        describe '.down (floor - toward negative infinity)' do
-          subject(:charmed) { discount.charm(0.99).down }
-
-          it { expect(charmed.apply(1.99)).to eq(1.98) }   # 1.99/0.99=2.01 → floor=2 → 1.98
-          it { expect(charmed.apply(0.99)).to eq(0.99) }   # exact multiple
-          it { expect(charmed.apply(0.49)).to eq(0.0) }    # 0.49/0.99=0.49 → floor=0 → 0.0
-          it { expect(charmed.apply(0.0)).to eq(0.0) }     # exact zero
-          it { expect(charmed.apply(-0.50)).to eq(-0.99) } # -0.50/0.99=-0.50 → floor=-1 → -0.99
-          it { expect(charmed.apply(-1.50)).to eq(-1.98) } # -1.50/0.99=-1.51 → floor=-2 → -1.98
-        end
-
-        describe '.up (ceil - toward positive infinity)' do
+        describe '.up' do
           subject(:charmed) { discount.charm(0.99).up }
 
-          it { expect(charmed.apply(1.99)).to eq(2.97) }   # 1.99/0.99=2.01 → ceil=3 → 2.97
-          it { expect(charmed.apply(0.99)).to eq(0.99) }   # exact multiple
-          it { expect(charmed.apply(0.49)).to eq(0.99) }   # 0.49/0.99=0.49 → ceil=1 → 0.99
-          it { expect(charmed.apply(0.01)).to eq(0.99) }   # 0.01/0.99=0.01 → ceil=1 → 0.99
-          it { expect(charmed.apply(0.0)).to eq(0.0) }     # exact zero
-          it { expect(charmed.apply(-0.50)).to eq(0.0) }   # -0.50/0.99=-0.50 → ceil=0 → 0.0
-          it { expect(charmed.apply(-1.50)).to eq(-0.99) } # -1.50/0.99=-1.51 → ceil=-1 → -0.99
+          it { expect(charmed.apply(2.59)).to eq(2.99) }   # rounds up to .99
+          it { expect(charmed.apply(2.99)).to eq(2.99) }   # exact match stays
+          it { expect(charmed.apply(3.01)).to eq(3.99) }   # rounds up to next .99
+          it { expect(charmed.apply(0.50)).to eq(0.99) }   # rounds up to 0.99
+          it { expect(charmed.apply(0.0)).to eq(0.0) }     # zero stays zero
         end
 
-        describe '.round (nearest)' do
+        describe '.down' do
+          subject(:charmed) { discount.charm(0.99).down }
+
+          it { expect(charmed.apply(2.59)).to eq(1.99) }   # rounds down to .99
+          it { expect(charmed.apply(2.99)).to eq(2.99) }   # exact match stays
+          it { expect(charmed.apply(3.01)).to eq(2.99) }   # rounds down to .99
+          it { expect(charmed.apply(0.50)).to eq(-0.01) }  # rounds down below zero
+          it { expect(charmed.apply(0.0)).to eq(0.0) }     # zero stays zero
+        end
+
+        describe '.round' do
           subject(:charmed) { discount.charm(0.99).round }
 
-          it { expect(charmed.apply(1.99)).to eq(1.98) }   # 1.99/0.99=2.01 → round=2 → 1.98
-          it { expect(charmed.apply(1.50)).to eq(1.98) }   # 1.50/0.99=1.51 → round=2 → 1.98
-          it { expect(charmed.apply(1.48)).to eq(0.99) }   # 1.48/0.99=1.49 → round=1 → 0.99
-          it { expect(charmed.apply(0.99)).to eq(0.99) }   # exact multiple
-          it { expect(charmed.apply(0.50)).to eq(0.99) }   # 0.50/0.99=0.50 → round=1 → 0.99
-          it { expect(charmed.apply(0.49)).to eq(0.0) }    # 0.49/0.99=0.49 → round=0 → 0.0
-          it { expect(charmed.apply(0.0)).to eq(0.0) }     # exact zero
+          it { expect(charmed.apply(2.50)).to eq(2.99) }   # closer to 2.99 than 1.99
+          it { expect(charmed.apply(2.48)).to eq(1.99) }   # closer to 1.99 than 2.99
+          it { expect(charmed.apply(2.99)).to eq(2.99) }   # exact match stays
+          it { expect(charmed.apply(0.0)).to eq(0.0) }     # zero stays zero
         end
       end
 
-      describe 'edge cases with whole number charm (9)' do
+      describe 'prices ending in 9' do
         subject(:discount) { Discount::Fixed.new(0) }
 
-        describe '.down (floor - toward negative infinity)' do
-          subject(:charmed) { discount.charm(9).down }
-
-          it { expect(charmed.apply(19)).to eq(18) }   # 19/9=2.11 → floor=2 → 18
-          it { expect(charmed.apply(18)).to eq(18) }   # exact multiple
-          it { expect(charmed.apply(17)).to eq(9) }    # 17/9=1.88 → floor=1 → 9
-          it { expect(charmed.apply(9)).to eq(9) }     # exact multiple
-          it { expect(charmed.apply(8)).to eq(0) }     # 8/9=0.88 → floor=0 → 0
-          it { expect(charmed.apply(0)).to eq(0) }     # exact zero
-          it { expect(charmed.apply(-1)).to eq(-9) }   # -1/9=-0.11 → floor=-1 → -9
-          it { expect(charmed.apply(-9)).to eq(-9) }   # exact multiple
-          it { expect(charmed.apply(-10)).to eq(-18) } # -10/9=-1.11 → floor=-2 → -18
-        end
-
-        describe '.up (ceil - toward positive infinity)' do
+        describe '.up' do
           subject(:charmed) { discount.charm(9).up }
 
-          it { expect(charmed.apply(19)).to eq(27) }   # 19/9=2.11 → ceil=3 → 27
-          it { expect(charmed.apply(18)).to eq(18) }   # exact multiple
-          it { expect(charmed.apply(17)).to eq(18) }   # 17/9=1.88 → ceil=2 → 18
-          it { expect(charmed.apply(9)).to eq(9) }     # exact multiple
-          it { expect(charmed.apply(8)).to eq(9) }     # 8/9=0.88 → ceil=1 → 9
-          it { expect(charmed.apply(1)).to eq(9) }     # 1/9=0.11 → ceil=1 → 9
-          it { expect(charmed.apply(0)).to eq(0) }     # exact zero
-          it { expect(charmed.apply(-1)).to eq(0) }    # -1/9=-0.11 → ceil=0 → 0
-          it { expect(charmed.apply(-9)).to eq(-9) }   # exact multiple
-          it { expect(charmed.apply(-10)).to eq(-9) }  # -10/9=-1.11 → ceil=-1 → -9
+          it { expect(charmed.apply(18)).to eq(19) }    # rounds up to 19
+          it { expect(charmed.apply(19)).to eq(19) }    # exact match stays
+          it { expect(charmed.apply(20)).to eq(29) }    # rounds up to 29
+          it { expect(charmed.apply(23.99)).to eq(29) } # rounds up to 29
+          it { expect(charmed.apply(5)).to eq(9) }      # rounds up to 9
+          it { expect(charmed.apply(0)).to eq(0) }      # zero stays zero
         end
 
-        describe '.round (nearest)' do
+        describe '.down' do
+          subject(:charmed) { discount.charm(9).down }
+
+          it { expect(charmed.apply(18)).to eq(9) }     # rounds down to 9
+          it { expect(charmed.apply(19)).to eq(19) }    # exact match stays
+          it { expect(charmed.apply(20)).to eq(19) }    # rounds down to 19
+          it { expect(charmed.apply(23.99)).to eq(19) } # rounds down to 19
+          it { expect(charmed.apply(5)).to eq(-1) }     # rounds down below zero
+          it { expect(charmed.apply(0)).to eq(0) }      # zero stays zero
+        end
+
+        describe '.round' do
           subject(:charmed) { discount.charm(9).round }
 
-          it { expect(charmed.apply(18)).to eq(18) }   # exact multiple
-          it { expect(charmed.apply(14)).to eq(18) }   # 14/9=1.55 → round=2 → 18
-          it { expect(charmed.apply(13)).to eq(9) }    # 13/9=1.44 → round=1 → 9
-          it { expect(charmed.apply(9)).to eq(9) }     # exact multiple
-          it { expect(charmed.apply(5)).to eq(9) }     # 5/9=0.55 → round=1 → 9
-          it { expect(charmed.apply(4)).to eq(0) }     # 4/9=0.44 → round=0 → 0
-          it { expect(charmed.apply(0)).to eq(0) }     # exact zero
-          it { expect(charmed.apply(-4)).to eq(0) }    # -4/9=-0.44 → round=0 → 0
-          it { expect(charmed.apply(-5)).to eq(-9) }   # -5/9=-0.55 → round=-1 → -9
+          it { expect(charmed.apply(14)).to eq(9) }     # closer to 9 than 19
+          it { expect(charmed.apply(15)).to eq(19) }    # closer to 19 than 9
+          it { expect(charmed.apply(19)).to eq(19) }    # exact match stays
+          it { expect(charmed.apply(0)).to eq(0) }      # zero stays zero
+        end
+      end
+
+      describe 'prices ending in 99' do
+        subject(:discount) { Discount::Fixed.new(0) }
+
+        describe '.up' do
+          subject(:charmed) { discount.charm(99).up }
+
+          it { expect(charmed.apply(150)).to eq(199) }  # rounds up to 199
+          it { expect(charmed.apply(99)).to eq(99) }    # exact match stays
+          it { expect(charmed.apply(100)).to eq(199) }  # rounds up to 199
+          it { expect(charmed.apply(50)).to eq(99) }    # rounds up to 99
+        end
+
+        describe '.down' do
+          subject(:charmed) { discount.charm(99).down }
+
+          it { expect(charmed.apply(150)).to eq(99) }   # rounds down to 99
+          it { expect(charmed.apply(99)).to eq(99) }    # exact match stays
+          it { expect(charmed.apply(200)).to eq(199) }  # rounds down to 199
         end
       end
     end
