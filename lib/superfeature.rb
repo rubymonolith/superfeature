@@ -8,11 +8,23 @@ require "superfeature/discount"
 require "superfeature/price"
 
 module Superfeature
-  # Convenience methods for creating Discount objects.
-  # Use Superfeature::Fixed(20) or after `include Superfeature`, just Fixed(20)
-  def Fixed(...) = Discount::Fixed.new(...)
-  def Percent(...) = Discount::Percent.new(...)
-  def Bundle(...) = Discount::Bundle.new(...)
-  module_function :Fixed, :Percent, :Bundle
-  public :Fixed, :Percent, :Bundle
+  # Mix this in to get Price, Fixed, Percent, Bundle helpers.
+  #
+  #   class Plan
+  #     include Superfeature::Pricing
+  #
+  #     def monthly_price
+  #       Price(29).apply_discount(Percent(20))
+  #     end
+  #   end
+  #
+  module Pricing
+    def Price(...) = Superfeature::Price.new(...)
+    def Fixed(...) = Discount::Fixed.new(...)
+    def Percent(...) = Discount::Percent.new(...)
+    def Bundle(...) = Discount::Bundle.new(...)
+  end
+
+  include Pricing
+  extend Pricing
 end

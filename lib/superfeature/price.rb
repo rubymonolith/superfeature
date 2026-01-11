@@ -1,14 +1,6 @@
 require 'bigdecimal'
 
 module Superfeature
-  # Convenience method for creating Price objects.
-  # Use Superfeature::Price(100) or after `include Superfeature`, just Price(100)
-  def Price(amount, **options)
-    Price.new(amount, **options)
-  end
-  module_function :Price
-  public :Price
-
   # Immutable price object with discount support. Uses BigDecimal internally
   # to avoid floating-point precision errors.
   #
