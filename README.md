@@ -661,6 +661,16 @@ price = Price(49.99)       # convenience method
 price = Price.new(49.99)   # standard constructor
 ```
 
+In Rails, you can also use core extensions:
+
+```ruby
+10.to_price           # => Price(10)
+49.99.to_price        # => Price(49.99)
+"$100".to_price       # => Price(100)
+```
+
+Outside of Rails, opt-in with `require "superfeature/core_ext"`.
+
 ### Conversions
 
 ```ruby
