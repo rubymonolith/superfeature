@@ -78,6 +78,7 @@ module Superfeature
       !@original.nil?
     end
 
+    # Returns the undiscounted price (walks up the discount chain)
     def full_price
       @original ? @original.amount : @amount
     end
@@ -117,6 +118,7 @@ module Superfeature
     def round(decimals = 2) = build_price(@amount.round(decimals))
     def clamp(min, max) = build_price(@amount.clamp(to_amount(min), to_amount(max)))
 
+    # Enables `10 + Price(5)` by converting the numeric to a Price
     def coerce(other)
       case other
       when Numeric then [build_price(other), self]

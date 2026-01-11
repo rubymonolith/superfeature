@@ -1,8 +1,15 @@
 require 'bigdecimal'
 
 module Superfeature
+  # Discount types that can be applied to a Price.
+  #
+  #   Price(100).apply_discount(Discount::Percent.new(20))  # => 80
+  #   Price(100).apply_discount(Discount::Fixed.new(15))    # => 85
+  #
   module Discount
+    # Base class for all discount types
     class Base
+      # Allows any discount to be passed to apply_discount
       def to_discount = self
 
       private
@@ -16,6 +23,8 @@ module Superfeature
       end
     end
 
+    # Wraps a discount after it's been applied to a price.
+    # Holds the computed savings (fixed and percent) for display.
     class Applied
       attr_reader :source, :fixed, :percent
 
@@ -41,6 +50,8 @@ module Superfeature
       end
     end
 
+    # Null object for when no discount is applied.
+    # Allows safe method chaining without nil checks.
     class None
       def source = nil
       def fixed = BigDecimal("0")
@@ -60,6 +71,7 @@ module Superfeature
 
     NONE = None.new.freeze
 
+    # Fixed dollar amount discount (e.g., "$20 off your first month")
     class Fixed < Base
       PATTERN = /\A\$?\s*(\d+(?:\.\d+)?)\z/
 
@@ -80,6 +92,7 @@ module Superfeature
       end
     end
 
+    # Percentage discount (e.g., "20% off annual plans")
     class Percent < Base
       PATTERN = /\A(\d+(?:\.\d+)?)\s*%\z/
 
@@ -100,6 +113,8 @@ module Superfeature
       end
     end
 
+    # Combines multiple discounts applied in sequence
+    # (e.g., "$10 off + 20% off for loyalty members")
     class Bundle < Base
       attr_reader :discounts
 
@@ -112,7 +127,7 @@ module Superfeature
       end
     end
 
-    # Charmed discount wrapper - applies discount then rounds to charm price
+    # Applies a discount then rounds to a "charm" price (e.g., $49.99, $99)
     class Charmed < Base
       attr_reader :discount, :multiple, :direction
 
@@ -144,7 +159,10 @@ module Superfeature
       end
     end
 
-    # Charm builder - returned by discount.charm(n)
+    # Builder for charm pricing. Use .up, .down, or .round to set direction.
+    #
+    #   Discount::Percent.new(20).charm(9).down  # rounds down to nearest $9
+    #
     class Charm
       attr_reader :discount, :multiple
 
