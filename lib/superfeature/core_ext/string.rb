@@ -1,4 +1,4 @@
-# Adds .to_price to String
+# Adds pricing extensions to String
 #
 #   "49.99".to_price      # => Price(49.99)
 #   "$100".to_price       # => Price(100)

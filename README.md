@@ -664,9 +664,10 @@ price = Price.new(49.99)   # standard constructor
 In Rails, you can also use core extensions:
 
 ```ruby
-10.to_price           # => Price(10)
-49.99.to_price        # => Price(49.99)
-"$100".to_price       # => Price(100)
+100.discounted_by(20.percent_off)  # => Price(80)
+100.discounted_by(20)              # => Price(80)
+100.to_price                       # => Price(100)
+"$49.99".to_price                  # => Price(49.99)
 ```
 
 Outside of Rails, opt-in with `require "superfeature/core_ext"`.

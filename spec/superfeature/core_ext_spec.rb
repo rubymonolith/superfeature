@@ -53,4 +53,40 @@ RSpec.describe "Core extensions" do
       expect(price.amount).to eq(50)
     end
   end
+
+  describe "Numeric#percent_off" do
+    it "creates a percentage discount" do
+      discount = 20.percent_off
+      expect(discount).to be_a(Superfeature::Discount::Percent)
+      expect(discount.percent).to eq(20)
+    end
+
+    it "works with floats" do
+      discount = 12.5.percent_off
+      expect(discount.percent).to eq(BigDecimal("12.5"))
+    end
+  end
+
+  describe "Numeric#discounted_by" do
+    it "applies a percentage discount" do
+      price = 100.discounted_by(20.percent_off)
+      expect(price).to be_a(Superfeature::Price)
+      expect(price.amount).to eq(80)
+    end
+
+    it "applies a fixed discount" do
+      price = 100.discounted_by(15)
+      expect(price.amount).to eq(85)
+    end
+
+    it "applies a string discount" do
+      price = 100.discounted_by("25%")
+      expect(price.amount).to eq(75)
+    end
+
+    it "works with floats" do
+      price = 49.99.discounted_by(10.percent_off)
+      expect(price.amount).to be_within(0.01).of(44.99)
+    end
+  end
 end
