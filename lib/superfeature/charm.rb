@@ -12,6 +12,12 @@ module Superfeature
   #   Charm.new(0.99).down(2.50) # => 1.99
   #
   class Charm
+    # Convenience methods to create charm discounts
+    # Usage: Charm::Up(9), Charm::Down(9), Charm::Nearest(9)
+    def self.Up(ending) = Discount::Charm::Up.new(ending)
+    def self.Down(ending) = Discount::Charm::Down.new(ending)
+    def self.Nearest(ending) = Discount::Charm::Nearest.new(ending)
+
     attr_reader :ending
 
     def initialize(ending)

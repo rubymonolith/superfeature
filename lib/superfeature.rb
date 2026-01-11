@@ -23,6 +23,7 @@ module Superfeature
     def Price(...) = Superfeature::Price.new(...)
     def Fixed(...) = Discount::Fixed.new(...)
     def Percent(...) = Discount::Percent.new(...)
+    Charm = Superfeature::Charm
   end
 
   include Pricing

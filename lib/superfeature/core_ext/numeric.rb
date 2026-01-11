@@ -5,15 +5,15 @@
 #   100.to_price                       # => Price(100)
 #
 class Numeric
-  def to_price(**options)
-    Superfeature::Price.new(self, **options)
+  def to_price(**)
+    Superfeature::Price.new(self, **)
   end
 
   def percent_off
     Superfeature::Discount::Percent.new(self)
   end
 
-  def discounted_by(discount)
-    to_price.apply_discount(discount)
+  def discounted_by(...)
+    to_price.apply_discount(...)
   end
 end
