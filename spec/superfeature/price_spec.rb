@@ -1050,7 +1050,7 @@ module Superfeature
           FINAL                  70.00
         TEXT
 
-        expect(Inspector.new(final).to_s).to eq(expected)
+        expect(Inspector.new(final.itemization).to_s).to eq(expected)
       end
 
       it 'formats a single price with no discounts' do
@@ -1062,7 +1062,7 @@ module Superfeature
           FINAL                 100.00
         TEXT
 
-        expect(Inspector.new(price).to_s).to eq(expected)
+        expect(Inspector.new(price.itemization).to_s).to eq(expected)
       end
 
       it 'formats prices with varying widths' do
@@ -1075,13 +1075,13 @@ module Superfeature
           FINAL                  500.00
         TEXT
 
-        expect(Inspector.new(final).to_s).to eq(expected)
+        expect(Inspector.new(final.itemization).to_s).to eq(expected)
       end
 
       it 'handles charm pricing discounts' do
         final = Price.new(100).apply_discount(Discount::Percent.new(50).charm(9))
 
-        output = Inspector.new(final).to_s
+        output = Inspector.new(final.itemization).to_s
         expect(output).to include("Original")
         expect(output).to include("FINAL")
         expect(output).to include("49.00")
@@ -1090,7 +1090,7 @@ module Superfeature
       it 'accepts custom label width' do
         final = Price.new(100).apply_discount("20%")
 
-        output = Inspector.new(final, label_width: 15).to_s
+        output = Inspector.new(final.itemization, label_width: 15).to_s
         expect(output).to include("Original")
         expect(output).to include("FINAL")
       end
@@ -1103,6 +1103,18 @@ module Superfeature
         expect(final.inspector).to be_a(Inspector)
         expect(final.inspector.to_s).to include("Original")
         expect(final.inspector.to_s).to include("FINAL")
+      end
+    end
+
+    describe 'via Price#pretty_print' do
+      require 'pp'
+
+      it 'outputs the inspector format' do
+        final = Price.new(100).apply_discount("20%")
+
+        output = PP.pp(final, +"")
+        expect(output).to include("Original")
+        expect(output).to include("FINAL")
       end
     end
   end

@@ -259,7 +259,7 @@ All notable changes to this project will be documented in this file.
   final.original == final.itemization.first  # => true
   ```
 
-- **`Inspector` class for receipt-style formatting** - Format a price breakdown as a readable receipt:
+- **`Inspector` class for receipt-style formatting** - Format a price breakdown as a readable receipt. This was made possible by `Itemization`:
 
   ```ruby
   final = Price(100).apply_discount("20%").apply_discount("$10")
@@ -273,6 +273,41 @@ All notable changes to this project will be documented in this file.
   # 10 off                -10.00
   #                     --------
   # FINAL                  70.00
+  ```
+
+  Use `pp` in the console for quick debugging:
+
+  ```ruby
+  pp final
+  # Original              100.00
+  # 20% off               -20.00
+  #                     --------
+  # Subtotal               80.00
+  # 10 off                -10.00
+  #                     --------
+  # FINAL                  70.00
+  ```
+
+  In a Rails ERB template, use `Itemization` to display a price breakdown:
+
+  ```erb
+  <table class="price-breakdown">
+    <% @price.itemization.each do |price| %>
+      <tr>
+        <% if price.discounted? %>
+          <td><%= price.discount.to_formatted_s %> off</td>
+          <td class="amount">-<%= price.discount.to_fixed_s %></td>
+        <% else %>
+          <td>Original</td>
+          <td class="amount"><%= price.to_formatted_s %></td>
+        <% end %>
+      </tr>
+    <% end %>
+    <tr class="total">
+      <td>Total</td>
+      <td class="amount"><%= @price.to_formatted_s %></td>
+    </tr>
+  </table>
   ```
 
 ### Migration Guide

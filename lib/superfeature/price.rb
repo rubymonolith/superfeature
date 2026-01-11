@@ -84,7 +84,7 @@ module Superfeature
 
     # Returns an Inspector for formatting the price breakdown as text.
     def inspector
-      Inspector.new(self)
+      Inspector.new(itemization)
     end
 
     # Returns the undiscounted price amount (walks up the discount chain)
@@ -150,6 +150,10 @@ module Superfeature
       else
         "#<Price #{to_formatted_s}>"
       end
+    end
+
+    def pretty_print(pp)
+      pp.text(inspector.to_s)
     end
 
     private
@@ -261,7 +265,7 @@ module Superfeature
   # Formats a price itemization as a receipt-style text breakdown.
   #
   #   final = Price(100).apply_discount("20%").apply_discount("$10")
-  #   puts Inspector.new(final)
+  #   puts Inspector.new(final.itemization)
   #
   #   # Output:
   #   #   Original              100.00
@@ -273,13 +277,13 @@ module Superfeature
   #   #   FINAL                  70.00
   #
   class Inspector
-    def initialize(price, label_width: 20)
-      @price = price
+    def initialize(itemization, label_width: 20)
+      @itemization = itemization
       @label_width = label_width
     end
 
     def to_s
-      items = @price.itemization.to_a
+      items = @itemization.to_a
       amount_width = calculate_amount_width(items)
       separator_line = " " * @label_width + "-" * amount_width
 
