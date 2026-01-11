@@ -146,14 +146,19 @@ module Superfeature
 
     def inspect
       if discounted?
-        "#<Price #{to_formatted_s} (was #{@previous.to_formatted_s}, #{discount.percent.to_f.round(1)}% off)>"
+        "#<#{self.class.name} #{to_formatted_s} (was #{@previous.to_formatted_s}, #{discount.percent.to_f.round(1)}% off)>"
       else
-        "#<Price #{to_formatted_s}>"
+        "#<#{self.class.name} #{to_formatted_s}>"
       end
     end
 
+    def pretty_inspect
+      receipt = inspector.to_s.lines.map { |line| "# #{line}" }.join
+      "#{inspect}\n#\n#{receipt}\n"
+    end
+
     def pretty_print(pp)
-      pp.text(inspector.to_s)
+      pp.text(pretty_inspect)
     end
 
     private
