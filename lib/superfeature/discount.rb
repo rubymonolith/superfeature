@@ -73,6 +73,28 @@ module Superfeature
 
     NONE = None.new.freeze
 
+    # Cumulative savings from original price
+    class Savings
+      attr_reader :fixed, :percent
+
+      def initialize(fixed:, percent:)
+        @fixed = fixed
+        @percent = percent
+      end
+
+      def to_fixed_s(decimals: 2)
+        "%.#{decimals}f" % fixed.abs.to_f
+      end
+
+      def to_percent_s(decimals: 0)
+        decimals.zero? ? "#{percent.abs.to_i}%" : "%.#{decimals}f%%" % percent.abs.to_f
+      end
+
+      def none?
+        fixed.zero?
+      end
+    end
+
     # Fixed dollar amount discount (e.g., "$20 off your first month")
     class Fixed < Base
       PATTERN = /\A\$?\s*(\d+(?:\.\d+)?)\z/

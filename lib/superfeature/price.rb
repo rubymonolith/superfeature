@@ -32,6 +32,13 @@ module Superfeature
       @discount || Discount::NONE
     end
 
+    def savings
+      original_amount = original.amount
+      fixed = original_amount - @amount
+      percent = original_amount.zero? ? BigDecimal("0") : (fixed / original_amount * 100)
+      Discount::Savings.new(fixed:, percent:)
+    end
+
     # Apply a discount from various sources:
     # - String: "25%" → 25% off, "$20" → $20 off
     # - Numeric: 20 → $20 off
@@ -44,8 +51,9 @@ module Superfeature
       if discount.present?
         coerced = coerce_discount(discount)
         discounted = coerced.apply(@amount)
+        original_amount = original.amount
         fixed = @amount - discounted
-        percent = @amount.zero? ? BigDecimal("0") : (fixed / @amount * 100)
+        percent = original_amount.zero? ? BigDecimal("0") : (fixed / original_amount * 100)
 
         applied = Discount::Applied.new(coerced, fixed:, percent:)
 
@@ -322,10 +330,11 @@ module Superfeature
       output = []
       output << format_line("Original", items.first.to_formatted_s, amount_width)
 
+      original_amount = items.first.amount
       items.drop(1).each_with_index do |price, index|
-        fixed = price.discount.fixed
-        sign = fixed.negative? ? "+" : "-"
-        discount_amount = "#{sign}#{price.discount.to_fixed_s}"
+        cumulative_fixed = original_amount - price.amount
+        sign = cumulative_fixed.negative? ? "+" : "-"
+        discount_amount = "#{sign}%.2f" % cumulative_fixed.abs.to_f
         label = price.discount.to_receipt_s
         output << format_line(label, discount_amount, amount_width)
         output << separator_line
