@@ -4,11 +4,12 @@ require "superfeature/limit"
 require "superfeature/feature"
 require "superfeature/plan"
 require "superfeature/plan/collection"
+require "superfeature/charm"
 require "superfeature/discount"
 require "superfeature/price"
 
 module Superfeature
-  # Mix this in to get Price, Fixed, Percent, Bundle helpers.
+  # Mix this in to get Price, Fixed, Percent helpers.
   #
   #   class Plan
   #     include Superfeature::Pricing
@@ -22,7 +23,6 @@ module Superfeature
     def Price(...) = Superfeature::Price.new(...)
     def Fixed(...) = Discount::Fixed.new(...)
     def Percent(...) = Discount::Percent.new(...)
-    def Bundle(...) = Discount::Bundle.new(...)
   end
 
   include Pricing

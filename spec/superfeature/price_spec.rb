@@ -235,43 +235,109 @@ module Superfeature
 
     describe '#discount_percent' do
       it 'applies percentage discount' do
-        price = Price.new(100.0).discount_percent(0.25)
+        price = Price.new(100.0).discount_percent(25)
         expect(price.amount).to eq(75.0)
       end
 
       it 'preserves the previous price' do
-        price = Price.new(100.0).discount_percent(0.25)
+        price = Price.new(100.0).discount_percent(25)
         expect(price.previous.amount).to eq(100.0)
       end
 
       it 'handles 50% discount' do
-        price = Price.new(100.0).discount_percent(0.5)
+        price = Price.new(100.0).discount_percent(50)
         expect(price.amount).to eq(50.0)
       end
 
       it 'handles 10% discount' do
-        price = Price.new(100.0).discount_percent(0.1)
+        price = Price.new(100.0).discount_percent(10)
         expect(price.amount).to eq(90.0)
       end
 
       it 'handles fractional percentages' do
-        price = Price.new(99.99).discount_percent(0.333)
+        price = Price.new(99.99).discount_percent(33.3)
         expect(price.amount).to be_within(0.01).of(66.69)
       end
 
       it 'handles 100% discount' do
-        price = Price.new(100.0).discount_percent(1.0)
+        price = Price.new(100.0).discount_percent(100)
         expect(price.amount).to eq(0.0)
       end
 
-      it 'converts percent to float' do
-        price = Price.new(100).discount_percent("0.25")
+      it 'converts percent to string' do
+        price = Price.new(100).discount_percent("25")
         expect(price.amount).to eq(75.0)
       end
 
       it 'preserves range settings' do
-        price = Price.new(100.0, range: 0..200).discount_percent(0.25)
+        price = Price.new(100.0, range: 0..200).discount_percent(25)
         expect(price.range).to eq(0..200)
+      end
+    end
+
+    describe '#charm' do
+      it 'rounds to nearest ending by default' do
+        price = Price.new(50).charm(9)
+        expect(price.amount).to eq(49)
+      end
+
+      it 'rounds to nearest .99 ending' do
+        price = Price.new(2.50).charm(0.99)
+        expect(price.amount).to eq(2.99)
+      end
+
+      it 'preserves the previous price' do
+        price = Price.new(50).charm(9)
+        expect(price.previous.amount).to eq(50)
+      end
+
+      it 'marks the price as discounted' do
+        price = Price.new(50).charm(9)
+        expect(price.discounted?).to be true
+      end
+    end
+
+    describe '#charm_up' do
+      it 'rounds up to next ending in 9' do
+        price = Price.new(50).charm_up(9)
+        expect(price.amount).to eq(59)
+      end
+
+      it 'rounds up to next ending in .99' do
+        price = Price.new(2.50).charm_up(0.99)
+        expect(price.amount).to eq(2.99)
+      end
+
+      it 'stays at exact match' do
+        price = Price.new(49).charm_up(9)
+        expect(price.amount).to eq(49)
+      end
+
+      it 'preserves the previous price' do
+        price = Price.new(50).charm_up(9)
+        expect(price.previous.amount).to eq(50)
+      end
+    end
+
+    describe '#charm_down' do
+      it 'rounds down to previous ending in 9' do
+        price = Price.new(50).charm_down(9)
+        expect(price.amount).to eq(49)
+      end
+
+      it 'rounds down to previous ending in .99' do
+        price = Price.new(2.50).charm_down(0.99)
+        expect(price.amount).to eq(1.99)
+      end
+
+      it 'stays at exact match' do
+        price = Price.new(49).charm_down(9)
+        expect(price.amount).to eq(49)
+      end
+
+      it 'preserves the previous price' do
+        price = Price.new(50).charm_down(9)
+        expect(price.previous.amount).to eq(50)
       end
     end
 
@@ -282,7 +348,7 @@ module Superfeature
       end
 
       it 'calculates from percentage discount' do
-        price = Price.new(100.0).discount_percent(0.25)
+        price = Price.new(100.0).discount_percent(25)
         expect(price.discount.fixed).to eq(25.0)
       end
 
@@ -312,7 +378,7 @@ module Superfeature
 
       context 'with percentage discount' do
         it 'returns the applied percentage' do
-          price = Price.new(100.0).discount_percent(0.25)
+          price = Price.new(100.0).discount_percent(25)
           expect(price.discount.percent).to eq(25.0)
         end
       end
@@ -339,7 +405,7 @@ module Superfeature
       end
 
       it 'returns true when percentage discount is applied' do
-        price = Price.new(100.0).discount_percent(0.25)
+        price = Price.new(100.0).discount_percent(25)
         expect(price.discounted?).to be true
       end
 
@@ -366,7 +432,7 @@ module Superfeature
       end
 
       it 'works with percentage discount' do
-        price = Price.new(100.0).discount_percent(0.25)
+        price = Price.new(100.0).discount_percent(25)
         expect(price.full_price).to eq(100.0)
       end
     end
@@ -433,7 +499,7 @@ module Superfeature
       end
 
       it 'supports percentage discount chaining' do
-        price = Price.new(100.0).discount_percent(0.25)
+        price = Price.new(100.0).discount_percent(25)
 
         expect(price.amount).to eq(75.0)
         expect(price.previous.amount).to eq(100.0)
@@ -455,7 +521,7 @@ module Superfeature
 
       it 'allows mixing discount types' do
         price = Price.new(100.0)
-          .discount_percent(0.10)
+          .discount_percent(10)
           .discount_fixed(5.0)
 
         # First: 100 - 10% = 90
@@ -715,17 +781,17 @@ module Superfeature
 
     describe 'edge cases' do
       it 'handles very small amounts' do
-        price = Price.new(0.01).discount_percent(0.5)
+        price = Price.new(0.01).discount_percent(50)
         expect(price.amount).to eq(BigDecimal("0.005"))
       end
 
       it 'handles large amounts' do
-        price = Price.new(1_000_000.00).discount_percent(0.1)
+        price = Price.new(1_000_000.00).discount_percent(10)
         expect(price.amount).to eq(900_000.0)
       end
 
       it 'handles fractional percentages' do
-        price = Price.new(100.0).discount_percent(0.155)
+        price = Price.new(100.0).discount_percent(15.5)
         expect(price.amount).to eq(84.5)
       end
     end
@@ -863,15 +929,6 @@ module Superfeature
         expect(price.amount).to eq(75.0)
       end
 
-      it 'accepts Discount::Bundle directly' do
-        bundle = Discount::Bundle.new(
-          Discount::Fixed.new(10),
-          Discount::Percent.new(20)
-        )
-        price = Price.new(100.0).apply_discount(bundle)
-        # 100 - 10 = 90, then 90 * 0.8 = 72
-        expect(price.amount).to eq(72.0)
-      end
     end
 
     describe 'to_discount protocol' do
@@ -1079,7 +1136,7 @@ module Superfeature
       end
 
       it 'handles charm pricing discounts' do
-        final = Price.new(100).apply_discount(Discount::Percent.new(50).charm(9))
+        final = Price.new(100).discount_percent(50).charm_down(9)
 
         output = Inspector.new(final.itemization).to_s
         expect(output).to include("Original")

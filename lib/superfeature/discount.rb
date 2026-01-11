@@ -113,110 +113,59 @@ module Superfeature
       end
     end
 
-    # Combines multiple discounts applied in sequence
-    # (e.g., "$10 off + 20% off for loyalty members")
-    class Bundle < Base
-      attr_reader :discounts
+    # Standalone charm pricing discounts.
+    # Rounds price to a psychological ending like .99 or 9.
+    #
+    #   Charm::Up.new(9).apply(50)      # => 59
+    #   Charm::Down.new(9).apply(50)    # => 49
+    #   Charm::Nearest.new(9).apply(50) # => 49
+    #
+    module Charm
+      class Up < Base
+        attr_reader :ending
 
-      def initialize(*discounts)
-        @discounts = discounts.flatten
-      end
-
-      def apply(price)
-        discounts.reduce(to_decimal(price)) { |amt, d| d.to_discount.apply(amt) }
-      end
-    end
-
-    # Applies a discount then rounds to a "charm" price ending (e.g., $19.99, $29, $49)
-    # charm(0.99) rounds to prices ending in .99: $0.99, $1.99, $2.99...
-    # charm(9) rounds to prices ending in 9: $9, $19, $29...
-    class Charmed < Base
-      attr_reader :discount, :ending, :direction
-
-      def initialize(discount, ending, direction)
-        @discount = discount
-        @ending = to_decimal(ending)
-        @direction = direction
-      end
-
-      def apply(price)
-        result = @discount.apply(price)
-        charm_round(result)
-      end
-
-      def to_formatted_s = @discount.to_formatted_s
-
-      private
-
-      def charm_round(value)
-        val = to_decimal(value)
-        return val if val.zero?
-
-        # Determine interval from ending
-        # 0.99 → interval of 1 (0.99, 1.99, 2.99...)
-        # 9 → interval of 10 (9, 19, 29...)
-        # 99 → interval of 100 (99, 199, 299...)
-        interval = @ending < 1 ? BigDecimal("1") : BigDecimal("10") ** @ending.to_i.to_s.length
-
-        # Find the candidate (base + ending)
-        base = (val / interval).floor * interval
-        candidate = base + @ending
-
-        case @direction
-        when :up
-          candidate < val ? candidate + interval : candidate
-        when :down
-          candidate > val ? candidate - interval : candidate
-        when :nearest
-          up_val = candidate < val ? candidate + interval : candidate
-          down_val = candidate > val ? candidate - interval : candidate
-          (val - down_val).abs <= (up_val - val).abs ? down_val : up_val
+        def initialize(ending)
+          @ending = to_decimal(ending)
         end
-      end
-    end
 
-    # Charm pricing discount. Applies a discount then rounds to a charm ending.
-    # Defaults to nearest rounding. Use .up or .down for explicit direction.
-    #
-    #   Discount::Percent.new(20).charm(9)       # rounds to nearest price ending in 9
-    #   Discount::Percent.new(20).charm(9).up    # rounds up to price ending in 9
-    #   Discount::Percent.new(20).charm(9).down  # rounds down to price ending in 9
-    #
-    class Charm < Base
-      attr_reader :discount, :ending
+        def apply(price)
+          Superfeature::Charm.new(@ending).up(price)
+        end
 
-      def initialize(discount, ending)
-        @discount = discount
-        @ending = to_decimal(ending)
+        def to_formatted_s = "charm up to #{@ending}"
       end
 
-      def apply(price)
-        Charmed.new(@discount, @ending, :nearest).apply(price)
+      class Down < Base
+        attr_reader :ending
+
+        def initialize(ending)
+          @ending = to_decimal(ending)
+        end
+
+        def apply(price)
+          Superfeature::Charm.new(@ending).down(price)
+        end
+
+        def to_formatted_s = "charm down to #{@ending}"
       end
 
-      def to_formatted_s = @discount.to_formatted_s
+      class Nearest < Base
+        attr_reader :ending
 
-      def up
-        Charmed.new(@discount, @ending, :up)
-      end
-      alias greedy up
+        def initialize(ending)
+          @ending = to_decimal(ending)
+        end
 
-      def down
-        Charmed.new(@discount, @ending, :down)
-      end
-      alias generous down
-    end
+        def apply(price)
+          Superfeature::Charm.new(@ending).nearest(price)
+        end
 
-    # Add charm method to Base
-    class Base
-      def charm(ending)
-        Charm.new(self, ending)
+        def to_formatted_s = "charm to #{@ending}"
       end
     end
 
     # Convenience methods: Discount::Fixed(20) instead of Discount::Fixed.new(20)
     def self.Fixed(amount) = Fixed.new(amount)
     def self.Percent(percent) = Percent.new(percent)
-    def self.Bundle(...) = Bundle.new(...)
   end
 end

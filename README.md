@@ -176,8 +176,8 @@ price = Price(100)
 # Fixed dollar amount off
 price.discount_fixed(20).amount  # => 80.0
 
-# Percentage off (0.25 = 25%)
-price.discount_percent(0.25).amount  # => 75.0
+# Percentage off (25 = 25%)
+price.discount_percent(25).amount  # => 75.0
 
 # Set a target price directly
 price.discount_to(79).amount  # => 79.0
@@ -226,15 +226,49 @@ Price(100).apply_discount(summer_sale).amount  # => 80.0
 Price(100).apply_discount(loyalty).amount      # => 90.0
 ```
 
-Bundle multiple discounts:
+Apply multiple discounts:
 
 ```ruby
-bundle = Discount::Bundle.new(
+Price(100).apply_discount(
   Discount::Fixed.new(10),    # $10 off first
   Discount::Percent.new(20)   # then 20% off
-)
+).amount  # => 72.0 (100 - 10 = 90, then 90 * 0.8 = 72)
+```
 
-Price(100).apply_discount(bundle).amount  # => 72.0 (100 - 10 = 90, then 90 * 0.8 = 72)
+### Charm Pricing
+
+Charm pricing rounds prices to psychological price points like $9.99 or $49:
+
+```ruby
+price = Price(50)
+
+price.charm(9)       # => Price(49) - nearest ending in 9
+price.charm_up(9)    # => Price(59) - round up to ending in 9
+price.charm_down(9)  # => Price(49) - round down to ending in 9
+
+price.charm(0.99)    # => Price(49.99) - nearest ending in .99
+```
+
+### Price Chains
+
+Chain operations directly on prices:
+
+```ruby
+Price(100)
+  .discount_percent(20)    # => Price(80)
+  .discount_fixed(10)      # => Price(70)
+  .charm_up(9)             # => Price(79)
+```
+
+Each step returns a new `Price` with a reference to the previous price, so you can walk back the chain:
+
+```ruby
+final = Price(100).discount_percent(20).charm_up(9)
+
+final.amount            # => 89
+final.previous.amount   # => 80
+final.original.amount   # => 100
+final.discounted?       # => true
 ```
 
 ### Custom Discount Sources

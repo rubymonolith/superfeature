@@ -26,6 +26,8 @@ module Superfeature
       @range = range
     end
 
+    def price = self
+
     def discount
       @discount || Discount::NONE
     end
@@ -36,17 +38,21 @@ module Superfeature
     # - Discount object: Discount::Percent.new(25) → 25% off
     # - Any object responding to to_discount
     # - nil: no discount, returns self
-    def apply_discount(source)
-      return self if source.nil?
+    def apply_discount(*discounts)
+      discount, *remaining = discounts.flatten
 
-      discount = coerce_discount(source)
-      discounted = discount.apply(@amount)
-      fixed = @amount - discounted
-      percent = @amount.zero? ? BigDecimal("0") : (fixed / @amount * 100)
+      if discount.present?
+        coerced = coerce_discount(discount)
+        discounted = coerced.apply(@amount)
+        fixed = @amount - discounted
+        percent = @amount.zero? ? BigDecimal("0") : (fixed / @amount * 100)
 
-      applied = Discount::Applied.new(discount, fixed:, percent:)
+        applied = Discount::Applied.new(coerced, fixed:, percent:)
 
-      build_price(discounted, previous: self, discount: applied)
+        build_price(discounted, previous: self, discount: applied).apply_discount(*remaining)
+      else
+        price
+      end
     end
 
     # Apply a fixed dollar discount
@@ -61,9 +67,29 @@ module Superfeature
       discount_fixed diff.positive? ? diff : 0
     end
 
-    # Apply a percentage discount (decimal, e.g., 0.25 for 25%)
+    # Apply a percentage discount (e.g., 50 for 50% off)
     def discount_percent(percent)
-      apply_discount Discount::Percent.new to_decimal(percent) * 100
+      apply_discount Discount::Percent.new(percent)
+    end
+
+    # Apply charm pricing to round to a psychological price ending.
+    # Defaults to nearest. Use charm_up or charm_down for explicit direction.
+    #
+    #   Price(50).charm(9)       # => Price(49) - nearest ending in 9
+    #   Price(50).charm_up(9)    # => Price(59) - round up to ending 9
+    #   Price(50).charm_down(9)  # => Price(49) - round down to ending 9
+    #   Price(50).charm(0.99)    # => Price(49.99) - nearest ending in .99
+    #
+    def charm(ending)
+      apply_discount Discount::Charm::Nearest.new(ending)
+    end
+
+    def charm_up(ending)
+      apply_discount Discount::Charm::Up.new(ending)
+    end
+
+    def charm_down(ending)
+      apply_discount Discount::Charm::Down.new(ending)
     end
 
     def discounted?
@@ -163,8 +189,8 @@ module Superfeature
 
     private
 
-    def build_price(amount, **options)
-      Price.new(amount, range: @range, **options)
+    def build_price(*, **)
+      Price.new(*, range: @range, **)
     end
 
     def clamp_to_range(value, range)
@@ -332,4 +358,5 @@ module Superfeature
       "%-#{@label_width}s%#{amount_width}s" % [label, amount]
     end
   end
+
 end
