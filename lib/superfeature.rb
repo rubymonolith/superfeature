@@ -4,7 +4,7 @@ require "superfeature/limit"
 require "superfeature/feature"
 require "superfeature/plan"
 require "superfeature/plan/collection"
-require "superfeature/charm"
+require "superfeature/round"
 require "superfeature/discount"
 require "superfeature/price"
 
@@ -23,7 +23,7 @@ module Superfeature
     def Price(...) = Superfeature::Price.new(...)
     def Fixed(...) = Discount::Fixed.new(...)
     def Percent(...) = Discount::Percent.new(...)
-    Charm = Superfeature::Charm
+    Round = Superfeature::Round
   end
 
   include Pricing

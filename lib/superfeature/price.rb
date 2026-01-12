@@ -80,24 +80,24 @@ module Superfeature
       apply_discount Discount::Percent.new(percent)
     end
 
-    # Apply charm pricing to round to a psychological price ending.
-    # Defaults to nearest. Use charm_up or charm_down for explicit direction.
+    # Round price to a specified ending.
+    # Defaults to nearest. Use round_up or round_down for explicit direction.
     #
-    #   Price(50).charm(9)       # => Price(49) - nearest ending in 9
-    #   Price(50).charm_up(9)    # => Price(59) - round up to ending 9
-    #   Price(50).charm_down(9)  # => Price(49) - round down to ending 9
-    #   Price(50).charm(0.99)    # => Price(49.99) - nearest ending in .99
+    #   Price(50).round(9)       # => Price(49) - nearest ending in 9
+    #   Price(50).round_up(9)    # => Price(59) - round up to ending 9
+    #   Price(50).round_down(9)  # => Price(49) - round down to ending 9
+    #   Price(50).round(0.99)    # => Price(49.99) - nearest ending in .99
     #
-    def charm(ending)
-      apply_discount Discount::Charm::Nearest.new(ending)
+    def round(ending)
+      apply_discount Discount::Round::Nearest.new(ending)
     end
 
-    def charm_up(ending)
-      apply_discount Discount::Charm::Up.new(ending)
+    def round_up(ending)
+      apply_discount Discount::Round::Up.new(ending)
     end
 
-    def charm_down(ending)
-      apply_discount Discount::Charm::Down.new(ending)
+    def round_down(ending)
+      apply_discount Discount::Round::Down.new(ending)
     end
 
     def discounted?
@@ -167,7 +167,7 @@ module Superfeature
 
     def negative? = @amount.negative?
 
-    def round(decimals = 2) = build_price(@amount.round(decimals))
+    
     def clamp(min, max) = build_price(@amount.clamp(to_amount(min), to_amount(max)))
 
     # Enables `10 + Price(5)` by converting the numeric to a Price

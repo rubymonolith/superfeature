@@ -143,14 +143,14 @@ module Superfeature
       end
     end
 
-    # Standalone charm pricing discounts.
-    # Rounds price to a psychological ending like .99 or 9.
+    # Rounding discounts.
+    # Rounds price to a specified ending like .99 or 9.
     #
-    #   Charm::Up.new(9).apply(50)      # => 59
-    #   Charm::Down.new(9).apply(50)    # => 49
-    #   Charm::Nearest.new(9).apply(50) # => 49
+    #   Round::Up.new(9).apply(50)      # => 59
+    #   Round::Down.new(9).apply(50)    # => 49
+    #   Round::Nearest.new(9).apply(50) # => 49
     #
-    module Charm
+    module Round
       class Up < Base
         attr_reader :ending
 
@@ -159,11 +159,11 @@ module Superfeature
         end
 
         def apply(price)
-          Superfeature::Charm.new(@ending).up(price)
+          Superfeature::Round.new(@ending).up(price)
         end
 
-        def to_formatted_s = "Charm up"
-        def to_receipt_s = "Charm up"
+        def to_formatted_s = "Round up"
+        def to_receipt_s = "Round up"
       end
 
       class Down < Base
@@ -174,11 +174,11 @@ module Superfeature
         end
 
         def apply(price)
-          Superfeature::Charm.new(@ending).down(price)
+          Superfeature::Round.new(@ending).down(price)
         end
 
-        def to_formatted_s = "Charm down"
-        def to_receipt_s = "Charm down"
+        def to_formatted_s = "Round down"
+        def to_receipt_s = "Round down"
       end
 
       class Nearest < Base
@@ -189,11 +189,11 @@ module Superfeature
         end
 
         def apply(price)
-          Superfeature::Charm.new(@ending).nearest(price)
+          Superfeature::Round.new(@ending).nearest(price)
         end
 
-        def to_formatted_s = "Charm"
-        def to_receipt_s = "Charm"
+        def to_formatted_s = "Round"
+        def to_receipt_s = "Round"
       end
     end
 

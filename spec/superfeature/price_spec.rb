@@ -275,68 +275,68 @@ module Superfeature
       end
     end
 
-    describe '#charm' do
+    describe '#round' do
       it 'rounds to nearest ending by default' do
-        price = Price.new(50).charm(9)
+        price = Price.new(50).round(9)
         expect(price.amount).to eq(49)
       end
 
       it 'rounds to nearest .99 ending' do
-        price = Price.new(2.50).charm(0.99)
+        price = Price.new(2.50).round(0.99)
         expect(price.amount).to eq(2.99)
       end
 
       it 'preserves the previous price' do
-        price = Price.new(50).charm(9)
+        price = Price.new(50).round(9)
         expect(price.previous.amount).to eq(50)
       end
 
       it 'marks the price as discounted' do
-        price = Price.new(50).charm(9)
+        price = Price.new(50).round(9)
         expect(price.discounted?).to be true
       end
     end
 
-    describe '#charm_up' do
+    describe '#round_up' do
       it 'rounds up to next ending in 9' do
-        price = Price.new(50).charm_up(9)
+        price = Price.new(50).round_up(9)
         expect(price.amount).to eq(59)
       end
 
       it 'rounds up to next ending in .99' do
-        price = Price.new(2.50).charm_up(0.99)
+        price = Price.new(2.50).round_up(0.99)
         expect(price.amount).to eq(2.99)
       end
 
       it 'stays at exact match' do
-        price = Price.new(49).charm_up(9)
+        price = Price.new(49).round_up(9)
         expect(price.amount).to eq(49)
       end
 
       it 'preserves the previous price' do
-        price = Price.new(50).charm_up(9)
+        price = Price.new(50).round_up(9)
         expect(price.previous.amount).to eq(50)
       end
     end
 
-    describe '#charm_down' do
+    describe '#round_down' do
       it 'rounds down to previous ending in 9' do
-        price = Price.new(50).charm_down(9)
+        price = Price.new(50).round_down(9)
         expect(price.amount).to eq(49)
       end
 
       it 'rounds down to previous ending in .99' do
-        price = Price.new(2.50).charm_down(0.99)
+        price = Price.new(2.50).round_down(0.99)
         expect(price.amount).to eq(1.99)
       end
 
       it 'stays at exact match' do
-        price = Price.new(49).charm_down(9)
+        price = Price.new(49).round_down(9)
         expect(price.amount).to eq(49)
       end
 
       it 'preserves the previous price' do
-        price = Price.new(50).charm_down(9)
+        price = Price.new(50).round_down(9)
         expect(price.previous.amount).to eq(50)
       end
     end
@@ -724,21 +724,7 @@ module Superfeature
       end
     end
 
-    describe '#round' do
-      it 'rounds to default precision' do
-        expect(Price.new(19.999).round.amount).to eq(20.0)
-      end
 
-      it 'rounds to specified precision' do
-        expect(Price.new(19.999).round(1).amount).to eq(20.0)
-        expect(Price.new(19.456).round(2).amount).to eq(19.46)
-      end
-
-      it 'preserves range settings' do
-        result = Price.new(19.999, range: 0..100).round
-        expect(result.range).to eq(0..100)
-      end
-    end
 
     describe '#clamp' do
       it 'clamps price within range' do
@@ -1135,8 +1121,8 @@ module Superfeature
         expect(Inspector.new(final.itemization).to_s).to eq(expected)
       end
 
-      it 'handles charm pricing discounts' do
-        final = Price.new(100).discount_percent(50).charm_down(9)
+      it 'handles rounding discounts' do
+        final = Price.new(100).discount_percent(50).round_down(9)
 
         output = Inspector.new(final.itemization).to_s
         expect(output).to include("Original")

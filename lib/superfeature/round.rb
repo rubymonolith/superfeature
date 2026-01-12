@@ -1,22 +1,22 @@
 require 'bigdecimal'
 
 module Superfeature
-  # Charm pricing rounds values to psychological price points.
-  # For example, $19.99 instead of $20, or $49 instead of $50.
+  # Rounds values to a specified ending.
+  # For example, round to 9 gives $19, $29, $49, etc.
   #
-  #   Charm.new(9).up(50)      # => 59 (next price ending in 9)
-  #   Charm.new(9).down(50)    # => 49 (previous price ending in 9)
-  #   Charm.new(9).nearest(50) # => 49 (closer to 49 than 59)
+  #   Round.new(9).up(50)      # => 59 (next value ending in 9)
+  #   Round.new(9).down(50)    # => 49 (previous value ending in 9)
+  #   Round.new(9).nearest(50) # => 49 (closer to 49 than 59)
   #
-  #   Charm.new(0.99).up(2.50)   # => 2.99
-  #   Charm.new(0.99).down(2.50) # => 1.99
+  #   Round.new(0.99).up(2.50)   # => 2.99
+  #   Round.new(0.99).down(2.50) # => 1.99
   #
-  class Charm
-    # Convenience methods to create charm discounts
-    # Usage: Charm::Up(9), Charm::Down(9), Charm::Nearest(9)
-    def self.Up(ending) = Discount::Charm::Up.new(ending)
-    def self.Down(ending) = Discount::Charm::Down.new(ending)
-    def self.Nearest(ending) = Discount::Charm::Nearest.new(ending)
+  class Round
+    # Convenience methods to create round discounts
+    # Usage: Round::Up(9), Round::Down(9), Round::Nearest(9)
+    def self.Up(ending) = Discount::Round::Up.new(ending)
+    def self.Down(ending) = Discount::Round::Down.new(ending)
+    def self.Nearest(ending) = Discount::Round::Nearest.new(ending)
 
     attr_reader :ending
 

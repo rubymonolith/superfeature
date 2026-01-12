@@ -181,21 +181,21 @@ All notable changes to this project will be documented in this file.
   100 - Price(30) # => Price(70)
   ```
 
-- **Charm pricing on discounts** - Round discounted prices to "charm" endings (e.g., $9.99, $19, $29). `charm()` is itself a discount that defaults to nearest rounding, with `.up` and `.down` for explicit direction:
+- **Rounding to endings** - Round prices to specific endings (e.g., $9.99, $19, $29). `round()` defaults to nearest, with `round_up` and `round_down` for explicit direction:
 
   ```ruby
-  # charm(9) is a discount - defaults to nearest rounding
-  Price(100).apply_discount(Percent(50).charm(9))       # => Price(49) (nearest)
-  Price(100).apply_discount(Percent(50).charm(9).up)    # => Price(59) (round up)
-  Price(100).apply_discount(Percent(50).charm(9).down)  # => Price(49) (round down)
+  # round(9) - defaults to nearest rounding
+  Price(50).round(9)       # => Price(49) (nearest)
+  Price(50).round_up(9)    # => Price(59) (round up)
+  Price(50).round_down(9)  # => Price(49) (round down)
 
   # Prices ending in .99 ($0.99, $1.99, $2.99...)
-  Price(100).apply_discount(Percent(50).charm(0.99))       # => Price(49.99)
-  Price(100).apply_discount(Percent(50).charm(0.99).up)    # => Price(50.99)
-  Price(100).apply_discount(Percent(50).charm(0.99).down)  # => Price(49.99)
+  Price(2.50).round(0.99)       # => Price(2.99)
+  Price(2.50).round_up(0.99)    # => Price(2.99)
+  Price(2.50).round_down(0.99)  # => Price(1.99)
 
   # Prices ending in 99 ($99, $199, $299...)
-  Price(300).apply_discount(Percent(50).charm(99).up)   # => Price(199)
+  Price(150).round_up(99)   # => Price(199)
   ```
 
 - **`Discount::Applied` wrapper class** - When a discount is applied, `price.discount` now returns an `Applied` object with computed values and formatting helpers:
