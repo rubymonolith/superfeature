@@ -24,22 +24,10 @@ module Superfeature
         keys.filter_map { |key| find(key) }
       end
 
-      private
-
-      def next_plan
-        return nil unless @plan.class.method_defined?(:next, false)
-        @plan.next
-      end
-
-      def previous_plan
-        return nil unless @plan.class.method_defined?(:previous, false)
-        @plan.previous
-      end
-
       def upgrades
         Enumerator.new do |y|
           node = @plan
-          while (node = node.class.method_defined?(:next, false) ? node.next : nil)
+          while (node = next_plan(node))
             y << node
           end
         end
@@ -49,11 +37,23 @@ module Superfeature
         Enumerator.new do |y|
           node = @plan
           nodes = []
-          while (node = node.class.method_defined?(:previous, false) ? node.previous : nil)
+          while (node = previous_plan(node))
             nodes.unshift(node)
           end
           nodes.each { |n| y << n }
         end
+      end
+
+      private
+
+      def next_plan(node)
+        return nil unless node.class.method_defined?(:next, false)
+        node.next
+      end
+
+      def previous_plan(node)
+        return nil unless node.class.method_defined?(:previous, false)
+        node.previous
       end
 
       def normalize_key(key)
