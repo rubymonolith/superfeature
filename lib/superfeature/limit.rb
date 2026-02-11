@@ -27,7 +27,7 @@ module Superfeature
       end
 
       def exceeded?
-        quantity > maximum if quantity and maximum
+        quantity >= maximum if quantity and maximum
       end
 
       def enabled?

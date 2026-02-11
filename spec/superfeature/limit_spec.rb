@@ -32,7 +32,7 @@ RSpec.describe Superfeature::Limit::Hard do
     context "when at limit" do
       let(:quantity) { 100 }
       let(:maximum) { 100 }
-      it { is_expected.to be true }
+      it { is_expected.to be false }
     end
 
     context "when over limit" do
@@ -62,7 +62,7 @@ RSpec.describe Superfeature::Limit::Hard do
 
     context "when at limit" do
       let(:quantity) { 100 }
-      it { is_expected.to be false }
+      it { is_expected.to be true }
     end
 
     context "when over limit" do
