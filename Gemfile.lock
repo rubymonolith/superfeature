@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    superfeature (0.1.8)
+    superfeature (0.1.9)
       rails (>= 8.0)
 
 GEM
