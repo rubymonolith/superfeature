@@ -22,6 +22,10 @@ module Superfeature
         maximum - quantity
       end
 
+      def remaining?
+        remaining > 0
+      end
+
       def exceeded?
         quantity > maximum if quantity and maximum
       end

@@ -90,6 +90,25 @@ RSpec.describe Superfeature::Limit::Hard do
     end
   end
 
+  describe "#remaining?" do
+    subject { limit.remaining? }
+
+    context "when under limit" do
+      let(:quantity) { 30 }
+      it { is_expected.to be true }
+    end
+
+    context "when at limit" do
+      let(:quantity) { 100 }
+      it { is_expected.to be false }
+    end
+
+    context "when over limit" do
+      let(:quantity) { 110 }
+      it { is_expected.to be false }
+    end
+  end
+
   describe "mutation" do
     it "allows updating quantity" do
       limit.quantity = 75

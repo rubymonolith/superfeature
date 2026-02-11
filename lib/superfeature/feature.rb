@@ -6,7 +6,7 @@ module Superfeature
 
     attr_reader :limit
     def_delegators :limit, :enabled?, :disabled?
-    def_delegators :limit, :quantity, :maximum, :remaining, :exceeded?
+    def_delegators :limit, :quantity, :maximum, :remaining, :remaining?, :exceeded?
 
     def initialize(limit: Limit::Base.new)
       @limit = limit
